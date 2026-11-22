@@ -5,6 +5,10 @@
 -- الحل: إعادة تسمية المعاملات إلى p_doc_type/p_at — الاستدعاءات موضعية
 -- فلا تأثر على أي مستدعي، وcreate or replace يستبدل النسخة القديمة المطبقة.
 
+-- الملف مرفوع للمستودع — نفّذه من SQL Editor في لوحة Supabase.
+
+drop function if exists next_doc_number(uuid, text, timestamptz);
+
 create or replace function next_doc_number(bid uuid, p_doc_type text, p_at timestamptz default now())
 returns text
 language plpgsql security definer set search_path = public as $$
