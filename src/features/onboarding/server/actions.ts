@@ -198,13 +198,25 @@ export async function createBusinessWithSetup(
   ]);
 
   if (businessRes.error || !businessRes.data) {
-    return { ok: false, error: "تعذر جلب بيانات المشروع بعد إنشائه" };
+    const err = businessRes.error;
+    const detail = err
+      ? `${err.code ?? "خطأ"}: ${err.message.slice(0, 160)}`
+      : "لم يُعد الصف — راجع سياسات RLS على businesses";
+    return { ok: false, error: `تعذر جلب بيانات المشروع (${detail})` };
   }
   if (accountsRes.error || !accountsRes.data) {
-    return { ok: false, error: "تعذر جلب الحسابات المالية بعد إنشائها" };
+    const err = accountsRes.error;
+    const detail = err
+      ? `${err.code ?? "خطأ"}: ${err.message.slice(0, 160)}`
+      : "لم تُعد صفوفاً — راجع سياسات RLS على financial_accounts";
+    return { ok: false, error: `تعذر جلب الحسابات المالية (${detail})` };
   }
   if (categoriesRes.error || !categoriesRes.data) {
-    return { ok: false, error: "تعذر جلب تصنيفات المصروفات بعد إنشائها" };
+    const err = categoriesRes.error;
+    const detail = err
+      ? `${err.code ?? "خطأ"}: ${err.message.slice(0, 160)}`
+      : "لم تُعد صفوفاً — راجع سياسات RLS على expense_categories";
+    return { ok: false, error: `تعذر جلب تصنيفات المصروفات (${detail})` };
   }
 
   const businessParsed = businessRowSchema.safeParse(businessRes.data);
