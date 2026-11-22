@@ -21,10 +21,21 @@ import {
   type SaleFormInput
 } from "@/core/validation/sale";
 
+export interface SaleItemDraft {
+  id: string;
+  productId: string | null;
+  name: string;
+  quantityMilli: number;
+  unitPriceMinor: number;
+  totalMinor: number;
+  lineNote: string;
+}
+
 export interface CreateSaleContext {
   businessId: string;
   accountRef?: FinancialAccountRef;
   createdBy?: string;
+  items?: SaleItemDraft[];
 }
 
 export interface CreateSaleResult {
@@ -32,6 +43,7 @@ export interface CreateSaleResult {
   debt: LocalDebt | null;
   entry: LocalJournalEntry;
   entryLines: LocalJournalEntryLine[];
+  items: SaleItemDraft[];
 }
 
 function mapEngineError(error: unknown): string {
@@ -60,6 +72,28 @@ export async function createSale(
   }
 
   const { op, netMinor, paidMinor, remainingMinor } = derived;
+
+  const items = ctx.items ?? [];
+  let itemLines: SaleItemDraft[] = [];
+  if (items.length > 0) {
+    let sum = 0;
+    for (const item of items) {
+      if (!Number.isInteger(item.quantityMilli) || item.quantityMilli <= 0) {
+        throw new Error("كمية صنف غير صالحة في الفاتورة");
+      }
+      if (item.totalMinor !== Math.round((item.quantityMilli * item.unitPriceMinor) / 1000)) {
+        throw new Error("مجموع سطر لا يطابق الكمية × السعر");
+      }
+      if (!item.name.trim()) {
+        throw new Error("اسم الصنف مطلوب");
+      }
+      sum += item.totalMinor;
+    }
+    if (sum !== op.totalAmount) {
+      throw new Error("مجموع السطور لا يطابق إجمالي الفاتورة");
+    }
+    itemLines = items;
+  }
 
   let engineResult: SaleResult;
   try {
@@ -151,9 +185,57 @@ export async function createSale(
       db.financialAccounts,
       db.journalEntries,
       db.journalEntryLines,
+      db.products,
+      db.saleItems,
+      db.inventoryMovements,
       db.outbox
     ],
     async () => {
+      if (itemLines.length > 0) {
+        await db.saleItems.bulkPut(
+          itemLines.map((item) => ({
+            id: item.id,
+            businessId: ctx.businessId,
+            saleId: saleId,
+            productId: item.productId,
+            name: item.name,
+            quantityMilli: item.quantityMilli,
+            unitPriceMinor: item.unitPriceMinor,
+            totalMinor: item.totalMinor,
+            lineNote: item.lineNote
+          }))
+        );
+
+        for (const item of itemLines) {
+          if (!item.productId) continue;
+          const product = await db.products.get(item.productId);
+          if (!product || product.deletedAt) continue;
+          if (product.businessId !== ctx.businessId) continue;
+          if (product.quantityMilli <= 0) continue;
+          const updatedProduct = {
+            ...product,
+            quantityMilli: product.quantityMilli - item.quantityMilli,
+            updatedAt: createdAt,
+            syncStatus: product.syncStatus === "synced" ? ("pending" as const) : product.syncStatus,
+            version: product.version + 1
+          };
+          await db.products.put(updatedProduct);
+          await db.inventoryMovements.put({
+            id: newId(),
+            businessId: ctx.businessId,
+            productId: product.id,
+            type: "out",
+            quantityMilli: item.quantityMilli,
+            unitCostMinor: product.purchasePriceMinor > 0 ? product.purchasePriceMinor : null,
+            refType: "sale",
+            refId: saleId,
+            occurredAt: op.occurredAt,
+            notes: "",
+            createdBy: ctx.createdBy ?? ""
+          });
+        }
+      }
+
       if (debt && op.customerId) {
         await db.debts.put(debt);
 
@@ -212,6 +294,18 @@ export async function createSale(
             debtId: sale.debtId,
             notes: parsed.data.notes
           },
+          items:
+            itemLines.length > 0
+              ? itemLines.map((item) => ({
+                  id: item.id,
+                  productId: item.productId,
+                  name: item.name,
+                  quantityMilli: item.quantityMilli,
+                  unitPriceMinor: item.unitPriceMinor,
+                  totalMinor: item.totalMinor,
+                  lineNote: item.lineNote || null
+                }))
+              : undefined,
           debt: debt
             ? {
                 id: debt.id,
@@ -225,5 +319,5 @@ export async function createSale(
     }
   );
 
-  return { sale, debt, entry, entryLines };
+  return { sale, debt, entry, entryLines, items: itemLines };
 }

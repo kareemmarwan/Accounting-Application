@@ -7,6 +7,7 @@ import {
   entitySoftDeletePayloadSchema,
   entityUpsertPayloadSchema,
   salePayloadSchema,
+  saleAddItemsPayloadSchema,
   purchasePayloadSchema,
   expensePayloadSchema,
   debtPaymentPayloadSchema,
@@ -15,6 +16,9 @@ import {
   depositPayloadSchema,
   withdrawalPayloadSchema,
   adjustmentPayloadSchema,
+  productUpsertPayloadSchema,
+  productSoftDeletePayloadSchema,
+  inventoryAdjustPayloadSchema,
   syncPushRequestSchema,
   type SyncPushOpResult,
   type SyncPushResponse,
@@ -34,6 +38,8 @@ function validatePayload(
     switch (opType) {
       case "sale.create":
         return salePayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة البيع غير صالحة" };
+      case "sale.add_items":
+        return saleAddItemsPayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة إضافة أصناف غير صالحة" };
       case "purchase.create":
         return purchasePayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة الشراء غير صالحة" };
       case "expense.create":
@@ -50,6 +56,12 @@ function validatePayload(
         return withdrawalPayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة السحب غير صالحة" };
       case "adjustment.create":
         return adjustmentPayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة التسوية غير صالحة" };
+      case "product.upsert":
+        return productUpsertPayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة المنتج غير صالحة" };
+      case "product.soft_delete":
+        return productSoftDeletePayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة حذف المنتج غير صالحة" };
+      case "inventory.adjust":
+        return inventoryAdjustPayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة حركة المخزون غير صالحة" };
       case "entity.upsert":
         return entityUpsertPayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة الكيان غير صالحة" };
       case "entity.soft_delete":

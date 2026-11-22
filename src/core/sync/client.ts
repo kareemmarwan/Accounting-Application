@@ -16,7 +16,9 @@ import {
   mapFinancialAccountRow,
   mapJournalEntryLineRow,
   mapJournalEntryRow,
+  mapProductRow,
   mapPurchaseRow,
+  mapSaleItemRow,
   mapSaleRow,
   mapSupplierRow
 } from "@/core/sync/row-mapping";
@@ -64,7 +66,16 @@ async function refreshCounts(): Promise<void> {
     .filter((item) => item.status !== "failed" || item.attempts < 12)
     .count();
   let conflicts = 0;
-  for (const table of [db.customers, db.suppliers, db.financialAccounts, db.sales, db.purchases, db.expenses, db.debts]) {
+  for (const table of [
+    db.customers,
+    db.suppliers,
+    db.financialAccounts,
+    db.sales,
+    db.purchases,
+    db.expenses,
+    db.debts,
+    db.products
+  ]) {
     conflicts += await table
       .filter((row: SyncFields) => row.syncStatus === "conflict")
       .count();
@@ -72,7 +83,12 @@ async function refreshCounts(): Promise<void> {
   setState({ pendingOps, conflicts });
 }
 
-const ENTITY_OPS: OutboxOpType[] = ["entity.upsert", "entity.soft_delete"];
+const ENTITY_OPS: OutboxOpType[] = [
+  "entity.upsert",
+  "entity.soft_delete",
+  "product.upsert",
+  "product.soft_delete"
+];
 
 function sourceTypeOf(opType: OutboxOpType): string {
   switch (opType) {
@@ -163,6 +179,8 @@ async function applyPushResult(
       }
       break;
     }
+    case "sale.add_items":
+      break;
     case "transfer.create":
     case "deposit.create":
     case "withdrawal.create":
@@ -185,6 +203,24 @@ async function applyPushResult(
       }
       break;
     }
+    case "product.upsert": {
+      await db.products.update(op.entityId, { syncStatus: "synced" });
+      break;
+    }
+    case "product.soft_delete": {
+      const product = await db.products.get(op.entityId);
+      if (product) {
+        await db.products.put({
+          ...product,
+          syncStatus: "synced",
+          updatedAt: new Date().toISOString(),
+          version: product.version + 1
+        });
+      }
+      break;
+    }
+    case "inventory.adjust":
+      break;
     default:
       break;
   }
@@ -210,6 +246,10 @@ async function readRecord(
       const row = await db.financialAccounts.get(id);
       return row ?? null;
     }
+    case "products": {
+      const row = await db.products.get(id);
+      return row ?? null;
+    }
     case "sales": {
       const row = await db.sales.get(id);
       return row ?? null;
@@ -230,6 +270,9 @@ async function putRecord(entityType: string, row: Record<string, unknown>): Prom
       break;
     case "financial_accounts":
       await db.financialAccounts.put(row as never);
+      break;
+    case "products":
+      await db.products.put(row as never);
       break;
     case "sales":
       await db.sales.put(row as never);
@@ -252,18 +295,19 @@ async function markRecordStatus(
 async function replaceLocalJournalEntry(op: OutboxItem, db: ReturnType<typeof getDB>): Promise<void> {
   const sourceType = sourceTypeOf(op.opType);
   if (!sourceType) return;
-  const entry = await db.journalEntries
+  const entries = await db.journalEntries
     .where("sourceType")
     .equals(sourceType)
     .filter((candidate) => candidate.sourceId === op.entityId)
-    .first();
-  if (!entry) return;
-  const lines = await db.journalEntryLines
-    .where("entryId")
-    .equals(entry.id)
     .toArray();
-  await db.journalEntryLines.bulkDelete(lines.map((line) => line.id));
-  await db.journalEntries.delete(entry.id);
+  for (const entry of entries) {
+    const lines = await db.journalEntryLines
+      .where("entryId")
+      .equals(entry.id)
+      .toArray();
+    await db.journalEntryLines.bulkDelete(lines.map((line) => line.id));
+    await db.journalEntries.delete(entry.id);
+  }
 }
 
 function backoffDelayMs(attempts: number): number {
@@ -464,6 +508,24 @@ async function applyDelta(table: string, rows: Array<Record<string, unknown>>): 
         const mapped = mapExpenseCategoryRow(row);
         if (!mapped) continue;
         await db.expenseCategories.put(mapped);
+      }
+      break;
+    }
+    case "products": {
+      for (const row of rows) {
+        const mapped = mapProductRow(row);
+        if (!mapped) continue;
+        const local = await db.products.get(mapped.id);
+        if (local && keepLocalOverServer(local, mapped.version)) continue;
+        await db.products.put(mapped);
+      }
+      break;
+    }
+    case "sale_items": {
+      for (const row of rows) {
+        const mapped = mapSaleItemRow(row);
+        if (!mapped) continue;
+        await db.saleItems.put(mapped);
       }
       break;
     }

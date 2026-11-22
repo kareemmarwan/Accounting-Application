@@ -180,6 +180,7 @@ export interface LocalAttachmentMeta extends SyncFields {
 
 export type OutboxOpType =
   | "sale.create"
+  | "sale.add_items"
   | "purchase.create"
   | "expense.create"
   | "debt_payment.create"
@@ -189,6 +190,9 @@ export type OutboxOpType =
   | "withdrawal.create"
   | "opening.create"
   | "adjustment.create"
+  | "product.upsert"
+  | "product.soft_delete"
+  | "inventory.adjust"
   | "entity.upsert"
   | "entity.soft_delete";
 
@@ -211,6 +215,47 @@ export interface SyncMetaRecord {
   businessId: string;
   lastPulledAt: string | null;
   watermarks: Record<string, string>;
+}
+
+export type ProductUnit = "piece" | "kg" | "liter" | "box" | "meter" | "other";
+
+export interface LocalProduct extends SyncFields {
+  id: string;
+  name: string;
+  category: string;
+  unit: ProductUnit;
+  barcode: string;
+  purchasePriceMinor: number;
+  salePriceMinor: number;
+  quantityMilli: number;
+  minQuantityMilli: number;
+  isActive: boolean;
+}
+
+export interface LocalSaleItem {
+  id: string;
+  businessId: string;
+  saleId: string;
+  productId: string | null;
+  name: string;
+  quantityMilli: number;
+  unitPriceMinor: number;
+  totalMinor: number;
+  lineNote: string;
+}
+
+export interface LocalInventoryMovement {
+  id: string;
+  businessId: string;
+  productId: string;
+  type: "in" | "out" | "adjust";
+  quantityMilli: number;
+  unitCostMinor: number | null;
+  refType: string | null;
+  refId: string | null;
+  occurredAt: string;
+  notes: string;
+  createdBy: string;
 }
 
 export interface LocalAttachmentBlob {
@@ -258,6 +303,9 @@ export class MusaedDB extends Dexie {
   journalEntryLines!: EntityTable<LocalJournalEntryLine, "id">;
   attachmentsMeta!: EntityTable<LocalAttachmentMeta, "id">;
   attachmentBlobs!: EntityTable<LocalAttachmentBlob, "id">;
+  products!: EntityTable<LocalProduct, "id">;
+  saleItems!: EntityTable<LocalSaleItem, "id">;
+  inventoryMovements!: EntityTable<LocalInventoryMovement, "id">;
   outbox!: EntityTable<OutboxItem, "id">;
   syncMeta!: EntityTable<SyncMetaRecord, "deviceId">;
   notifications!: EntityTable<LocalNotification, "id">;
@@ -287,6 +335,12 @@ export class MusaedDB extends Dexie {
     });
     this.version(3).stores({
       attachmentBlobs: "id"
+    });
+    this.version(4).stores({
+      products:
+        "id, businessId, syncStatus, updatedAt, barcode, name, isActive, category",
+      saleItems: "id, businessId, saleId, productId",
+      inventoryMovements: "id, businessId, productId, occurredAt, refId"
     });
   }
 }

@@ -15,13 +15,15 @@ export const SYNC_ENTITY_TYPES = [
   "customers",
   "suppliers",
   "financial_accounts",
-  "expense_categories"
+  "expense_categories",
+  "products"
 ] as const;
 
 export type SyncEntityType = (typeof SYNC_ENTITY_TYPES)[number];
 
 export const SYNC_OP_TYPES = [
   "sale.create",
+  "sale.add_items",
   "purchase.create",
   "expense.create",
   "debt_payment.create",
@@ -30,6 +32,9 @@ export const SYNC_OP_TYPES = [
   "deposit.create",
   "withdrawal.create",
   "adjustment.create",
+  "product.upsert",
+  "product.soft_delete",
+  "inventory.adjust",
   "entity.upsert",
   "entity.soft_delete"
 ] as const;
@@ -53,6 +58,36 @@ const cashPaymentMethodSchema = z.enum([
   "electronic"
 ]);
 
+const milli = z
+  .number()
+  .int("كمية غير صحيحة")
+  .positive("كمية غير صحيحة");
+
+const productUnitSchema = z.enum([
+  "piece",
+  "kg",
+  "liter",
+  "box",
+  "meter",
+  "other"
+]);
+
+export const saleItemPayloadSchema = z.object({
+  id: uuid,
+  productId: nullableUuid,
+  name: z.string().trim().min(1, "اسم الصنف مطلوب").max(200),
+  quantityMilli: milli,
+  unitPriceMinor: minor,
+  totalMinor: minor,
+  lineNote: z.string().max(200).nullable().optional()
+});
+
+export type SaleItemPayload = z.infer<typeof saleItemPayloadSchema>;
+
+function roundLineTotal(quantityMilli: number, unitPriceMinor: number): number {
+  return Math.round((quantityMilli * unitPriceMinor) / 1000);
+}
+
 export const salePayloadSchema = z
   .object({
     clientOpId: uuid,
@@ -73,6 +108,7 @@ export const salePayloadSchema = z
       debtId: nullableUuid,
       notes: text
     }),
+    items: z.array(saleItemPayloadSchema).max(500).optional(),
     debt: z
       .object({
         id: uuid,
@@ -105,10 +141,94 @@ export const salePayloadSchema = z
         message: "المتبقي لا يطابق الصافي − المدفوع"
       });
     }
+    if (data.items && data.items.length > 0) {
+      let sum = 0;
+      for (const item of data.items) {
+        const expected = roundLineTotal(item.quantityMilli, item.unitPriceMinor);
+        if (item.totalMinor !== expected) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["items"],
+            message: "مجموع سطر لا يطابق الكمية × السعر"
+          });
+          return;
+        }
+        sum += item.totalMinor;
+      }
+      if (sum !== totalAmountMinor) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["items"],
+          message: "مجموع السطور لا يطابق إجمالي الفاتورة"
+        });
+      }
+    }
   });
 
-export const purchasePayloadSchema = z
+export const saleAddItemsPayloadSchema = z
   .object({
+    clientOpId: uuid,
+    createdAt: iso,
+    opType: z.literal("sale.add_items").optional(),
+    saleId: uuid,
+    items: z.array(saleItemPayloadSchema).min(1).max(500),
+    totalMinor: minor.refine((value) => value > 0, "قيمة الإضافة يجب أن تكون أكبر من صفر"),
+    paidAmountMinor: minor,
+    paymentMethod: cashPaymentMethodSchema,
+    accountId: nullableUuid,
+    customerId: nullableUuid,
+    debtId: nullableUuid.optional(),
+    occurredAt: iso,
+    notes: text
+  })
+  .superRefine((data, ctx) => {
+    let sum = 0;
+    for (const item of data.items) {
+      const expected = roundLineTotal(item.quantityMilli, item.unitPriceMinor);
+      if (item.totalMinor !== expected) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["items"],
+          message: "مجموع سطر لا يطابق الكمية × السعر"
+        });
+        return;
+      }
+      sum += item.totalMinor;
+    }
+    if (sum !== data.totalMinor) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["totalMinor"],
+        message: "مجموع السطور لا يطابق قيمة الإضافة"
+      });
+    }
+    if (data.paidAmountMinor > data.totalMinor) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["paidAmountMinor"],
+        message: "المدفوع أكبر من قيمة الإضافة"
+      });
+    }
+    const remaining = data.totalMinor - data.paidAmountMinor;
+    if (remaining > 0 && !data.customerId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["customerId"],
+        message: "الجزء الآجل يتطلب عميلاً"
+      });
+    }
+    if (data.paidAmountMinor > 0 && !data.accountId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["accountId"],
+        message: "حساب الاستلام مطلوب عند وجود مدفوع"
+      });
+    }
+  });
+
+export type SaleAddItemsPayload = z.infer<typeof saleAddItemsPayloadSchema>;
+
+export const purchasePayloadSchema = z  .object({
     clientOpId: uuid,
     createdAt: iso,
     opType: z.literal("purchase.create").optional(),
@@ -280,8 +400,54 @@ export const adjustmentPayloadSchema = z
     { message: "فرق التسوية لا يطابق المعدود − الدفتري", path: ["adjustment", "diffMinor"] }
   );
 
-export const entityUpsertPayloadSchema = z.discriminatedUnion("entityType", [
-  z.object({
+export const productUpsertPayloadSchema = z.object({
+  clientOpId: uuid,
+  createdAt: iso,
+  opType: z.literal("product.upsert").optional(),
+  entityType: z.literal("products"),
+  row: z.object({
+    id: uuid,
+    name: z.string().trim().min(2).max(120),
+    category: z.string().max(60).optional().default(""),
+    unit: productUnitSchema.optional().default("piece"),
+    barcode: z.string().max(32).regex(/^[A-Za-z0-9\-_]*$/, "باركود غير صالح"),
+    purchasePriceMinor: minor,
+    salePriceMinor: minor,
+    quantityMilli: z.number().int().nonnegative(),
+    minQuantityMilli: z.number().int().nonnegative(),
+    isActive: z.boolean().optional().default(true)
+  }),
+  expectedVersion: z.number().int().positive().optional()
+});
+
+export type ProductUpsertPayload = z.infer<typeof productUpsertPayloadSchema>;
+
+export const productSoftDeletePayloadSchema = z.object({
+  clientOpId: uuid,
+  createdAt: iso,
+  entityType: z.literal("products"),
+  entityId: uuid
+});
+
+export const inventoryAdjustPayloadSchema = z.object({
+  clientOpId: uuid,
+  createdAt: iso,
+  opType: z.literal("inventory.adjust").optional(),
+  productId: uuid,
+  type: z.enum(["in", "out", "adjust"]),
+  quantityMilli: milli,
+  countedQuantityMilli: z.number().int().nonnegative().nullable().optional(),
+  expectedQuantityMilli: z.number().int().nonnegative().nullable().optional(),
+  unitCostMinor: z.number().int().nonnegative().nullable().optional(),
+  refType: z.string().max(40).nullable().optional(),
+  refId: nullableUuid.optional(),
+  occurredAt: iso,
+  notes: text
+});
+
+export type InventoryAdjustPayload = z.infer<typeof inventoryAdjustPayloadSchema>;
+
+export const entityUpsertPayloadSchema = z.discriminatedUnion("entityType", [  z.object({
     clientOpId: uuid,
     createdAt: iso,
     entityType: z.literal("customers"),
@@ -319,9 +485,26 @@ export const entityUpsertPayloadSchema = z.discriminatedUnion("entityType", [
       isActive: z.boolean().optional()
     }),
     expectedVersion: z.number().int().positive().optional()
+  }),
+  z.object({
+    clientOpId: uuid,
+    createdAt: iso,
+    entityType: z.literal("products"),
+    row: z.object({
+      id: uuid,
+      name: z.string().trim().min(2).max(120),
+      category: z.string().max(60).optional().default(""),
+      unit: productUnitSchema.optional().default("piece"),
+      barcode: z.string().max(32).regex(/^[A-Za-z0-9\-_]*$/, "باركود غير صالح"),
+      purchasePriceMinor: minor,
+      salePriceMinor: minor,
+      quantityMilli: z.number().int().nonnegative(),
+      minQuantityMilli: z.number().int().nonnegative(),
+      isActive: z.boolean().optional().default(true)
+    }),
+    expectedVersion: z.number().int().positive().optional()
   })
 ]);
-
 export const entitySoftDeletePayloadSchema = z.object({
   clientOpId: uuid,
   createdAt: iso,

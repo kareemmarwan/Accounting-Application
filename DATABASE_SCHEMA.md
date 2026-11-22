@@ -197,9 +197,16 @@ Storage: bucket واحد `attachments` بمسار `{business_id}/{entity}/{uuid}
 ### 2.19 business_sequences
 `business_id, doc_type text, prefix text, last_number int default 0, year int` — PK `(business_id, doc_type, year)`؛ الدالة `next_doc_number` ذرّية (transaction).
 
-### 2.20 (لاحقاً) products & inventory_movements
-`products`: id, business_id, name, category, unit, purchase_price, sale_price, quantity, min_quantity, barcode, supplier_id, is_active.
-`inventory_movements`: id, business_id, product_id, type (in/out/adjust/return), quantity, unit_cost, ref_type, ref_id, occurred_at. — تُفعَّل مع Phase 7 دون تغيير جداول المحاسبة.
+### 2.20 products / sale_items / inventory_movements (Phase 7.1 — الكاشير)
+`products`: id, business_id, name, category, unit ('piece'|'kg'|'liter'|'box'|'meter'|'other'), **barcode** (فريد لكل مشروع بين غير المحذوفين: partial unique index), purchase_price numeric(14,2), sale_price numeric(14,2), quantity numeric(14,3), min_quantity numeric(14,3), is_active, timestamps, deleted_at, version.
+`sale_items`: id, business_id, sale_id FK, product_id null, name, quantity numeric(14,3), unit_price numeric(14,2), total numeric(14,2), line_note, created_at, updated_at — سطور فاتورة البيع (الكاشير)؛ اختيارية للبيعة العادية.
+`inventory_movements`: id, business_id, product_id, type ('in'|'out'|'adjust'), quantity numeric(14,3), unit_cost numeric(14,2) null, ref_type, ref_id, occurred_at, notes, created_by, created_at — سجل حركات المخزون (توريد/إخراج/جرد + خروج تلقائي عند البيع).
+
+- **الكميات بوحدة الألف (milli):** 1000 = وحدة واحدة؛ 1.250 كجم = 1250 milli.
+- **قاعدة خصم المخزون عند البيع:** كل سطر بمنتج معرف وكمية دفترية > 0 يخصم كميته ويسجل حركة `out` مرتبطة بالبيع (ref_type='sale')؛ منتج بكمية 0 (غير متتبَّع/خدمة) لا يُخصم ولا يُسجل حركة.
+- **الباركود فريد:** `unique (business_id, barcode) where barcode is not null and deleted_at is null`.
+- **العمليات الجديدة في المزامنة:** `product.upsert` (owner/manager/accountant)، `product.soft_delete` (نفس الأدوار)، `inventory.adjust` (كل الأدوار — التوريد من الموظفين)، مع حُرّاس: عدم تكرار الباركود، ومطابقة `expectedQuantityMilli` عند الجرد (CONFLICT إن تغيّرت).
+- **تعديل فاتورة (sale.add_items):** إضافة أصناف لفاتورة posted لاحقاً — لا يُعدَّل قيدها الأصلي (ADR-5)؛ يُنشأ قيد دلتا متوازن (مدين: صندوق بالمدفوع + عملاء بالمتبقي / دائن: مبيعات بقيمة الإضافة)، سطور جديدة في sale_items، خصم مخزون + حركة out، وإن كان الجزء آجلاً: يُرفع `debts.amount` و`remaining_amount` (نفس الدين إن وُجد أو دين جديد للفاتورة) ورصيد العميل. `void_posted_document` للبيع يعكس **كل** قيود الفاتورة (الأصل + الإضافات) ويستعيد مخزون sale_items.
 
 ---
 
@@ -250,6 +257,12 @@ create index on journal_entries (business_id, source_type, source_id);
 create index on business_members (user_id);
 create index on operation_log   (business_id, client_op_id); -- unique يغطيها
 create index on customers/suppliers (business_id, name);
+create index on products (business_id, name);
+create index on products (business_id, is_active) where deleted_at is null;
+create index on sale_items (sale_id);
+create index on sale_items (business_id, product_id) where product_id is not null;
+create index on inventory_movements (business_id, product_id, occurred_at);
+create index on inventory_movements (business_id, ref_type, ref_id);
 -- فهرس partial للدلتا سحباً:
 create index on sales (business_id, updated_at) where deleted_at is null;
 ```
@@ -284,6 +297,9 @@ create index on sales (business_id, updated_at) where deleted_at is null;
 | business_members إدارة | ✅ | ⛔ | ⛔ | ⛔ |
 | businesses تعديل/إعدادات | ✅ | جزئي | ⛔ | ⛔ |
 | audit_logs قراءة | ✅ | ✅ | ⛔ | ⛔ |
+| products قراءة | ✅ | ✅ | ✅ | ✅ (كتالوج الكاشير) |
+| products كتابة/حذف ناعم | ✅ | ✅ | ✅ | ⛔ |
+| inventory_movements insert (توريد/جرد) | ✅ | ✅ | ✅ | ✅ |
 
 ---
 

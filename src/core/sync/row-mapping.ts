@@ -8,8 +8,11 @@ import type {
   LocalJournalEntry,
   LocalJournalEntryLine,
   LocalParty,
+  LocalProduct,
   LocalPurchase,
   LocalSale,
+  LocalSaleItem,
+  ProductUnit,
   SyncStatus
 } from "@/core/db/db";
 
@@ -303,5 +306,61 @@ export function mapJournalEntryLineRow(row: Row): LocalJournalEntryLine | null {
     financialAccountId: nullableStr(row, "financial_account_id"),
     partyType: partyType === "customer" || partyType === "supplier" ? partyType : null,
     partyId: nullableStr(row, "party_id")
+  };
+}
+
+const PRODUCT_UNITS: ProductUnit[] = ["piece", "kg", "liter", "box", "meter", "other"];
+
+function milliQuantity(row: Row, key: string): number {
+  const value = row[key];
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.round(value * 1000);
+  }
+  const raw = String(value ?? "").trim();
+  const match = /^[+-]?\d+(?:\.(\d{1,3}))?$/.exec(raw);
+  if (!match) return 0;
+  const sign = raw.startsWith("-") ? -1 : 1;
+  const unsigned = raw.replace(/^[+-]/, "");
+  const [whole, fraction = ""] = unsigned.split(".");
+  const milli = Number(whole) * 1000 + Number((fraction + "000").slice(0, 3));
+  return sign * milli;
+}
+
+export function mapProductRow(row: Row): LocalProduct | null {
+  const serverMeta = meta(row);
+  if (!serverMeta.id) return null;
+  const unit = str(row, "unit");
+  return {
+    id: serverMeta.id,
+    businessId: serverMeta.businessId,
+    name: str(row, "name"),
+    category: str(row, "category"),
+    unit: (PRODUCT_UNITS as string[]).includes(unit) ? (unit as ProductUnit) : "piece",
+    barcode: str(row, "barcode"),
+    purchasePriceMinor: money(row, "purchase_price"),
+    salePriceMinor: money(row, "sale_price"),
+    quantityMilli: milliQuantity(row, "quantity"),
+    minQuantityMilli: milliQuantity(row, "min_quantity"),
+    isActive: row.is_active === undefined ? true : Boolean(row.is_active),
+    updatedAt: serverMeta.updatedAt,
+    syncStatus: "synced" as SyncStatus,
+    version: serverMeta.version,
+    deletedAt: serverMeta.deletedAt
+  };
+}
+
+export function mapSaleItemRow(row: Row): LocalSaleItem | null {
+  const serverMeta = meta(row);
+  if (!serverMeta.id) return null;
+  return {
+    id: serverMeta.id,
+    businessId: serverMeta.businessId,
+    saleId: str(row, "sale_id"),
+    productId: nullableStr(row, "product_id"),
+    name: str(row, "name"),
+    quantityMilli: milliQuantity(row, "quantity"),
+    unitPriceMinor: money(row, "unit_price"),
+    totalMinor: money(row, "total"),
+    lineNote: str(row, "line_note")
   };
 }
