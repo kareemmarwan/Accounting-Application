@@ -104,7 +104,13 @@ function mapDbError(message: string, code: string | undefined): string {
   if (/fetch failed|failed to fetch|networkerror|network error/i.test(message)) {
     return "تعذر الاتصال بالخادم — تحقق من اتصالك بالإنترنت";
   }
-  return "تعذر إنشاء المشروع — أعد المحاولة";
+  if (/could not find the function|schema cache/i.test(message)) {
+    return "دالة إنشاء المشروع غير موجودة — طبّق ملفات التهجير 0005 و0007 من supabase/migrations في SQL Editor";
+  }
+  if (/[\u0600-\u06FF]/.test(message)) {
+    return message.replace(/^error:\s*/i, "").trim();
+  }
+  return `تعذر إنشاء المشروع (${code ?? "خطأ"}): ${message.slice(0, 160)}`;
 }
 
 function parseAmountMinor(value: string): number {
