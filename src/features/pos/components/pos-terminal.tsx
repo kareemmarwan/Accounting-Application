@@ -23,7 +23,7 @@ import {
 import { getDB, type LocalProduct, type LocalSale } from "@/core/db/db";
 import { fromMinor, toMinor } from "@/core/accounting/money";
 import { formatCurrency } from "@/lib/format";
-import { fromMilli, parseQuantityToMilli, PRODUCT_UNIT_LABELS, UNIT_MILLI_LABELS } from "@/core/validation/product";
+import { fromMilli, parseQuantityToMilli, parseScaleBarcode, PRODUCT_UNIT_LABELS, UNIT_MILLI_LABELS } from "@/core/validation/product";
 import {
   findProductByBarcode,
   isLowStock
@@ -156,25 +156,23 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
 
   function addLine(product: LocalProduct, quantityMilli: number, lineNote = "") {
     setError(null);
-    setCart((current) => {
-      const key = product.id + (lineNote ? `:${lineNote}` : "");
-      const existing = current.find((line) => line.key === key);
-      if (existing) {
-        return current.map((line) =>
-          line.key === key
-            ? { ...line, quantityMilli: line.quantityMilli + quantityMilli }
-            : line
-        );
-      }
-      return [
-        ...current,
-        newCartLine(product, quantityMilli, lineNote)
-      ];
-    });
+    setCart((current) => [...current, newCartLine(product, quantityMilli, lineNote)]);
   }
 
   async function submitCode(code: string): Promise<boolean> {
     if (!code) return true;
+    const scaleLabel = parseScaleBarcode(code);
+    if (scaleLabel) {
+      const scaleProduct = await findProductByBarcode(
+        `2${scaleLabel.itemCode}`,
+        business.id
+      );
+      if (scaleProduct) {
+        setScanError(null);
+        addLine(scaleProduct, scaleLabel.quantityMilli);
+        return true;
+      }
+    }
     const product = await findProductByBarcode(code, business.id);
     if (!product) {
       setScanError(`لا يوجد منتج بالباركود: ${code}`);
@@ -476,7 +474,7 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
           <div className="max-h-64 space-y-2 overflow-y-auto">
             {cart.length === 0 && (
               <p className="rounded-xl bg-muted-foreground/5 p-3 text-center text-xs text-muted">
-                السلة فارغة — امسح باركود أو اختر منتجاً
+                السلة فارغة — كل مسحة تُسجَّل سطراً مستقلاً؛ للحذف احذف السطر المطلوب فقط
               </p>
             )}
             {cart.map((line) => (

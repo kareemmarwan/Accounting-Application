@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   fromMilli,
   generateBarcode,
+  generateScaleCode,
   inventoryAdjustSchema,
+  isWeightProductUnit,
   parseQuantityToMilli,
+  parseScaleBarcode,
   productFormSchema
 } from "./product";
 
@@ -41,6 +44,40 @@ describe("generateBarcode", () => {
       sum += i % 2 === 0 ? digit : digit * 3;
     }
     expect((10 - (sum % 10)) % 10).toBe(Number(code[12]));
+  });
+});
+
+describe("generateScaleCode", () => {
+  it("يبني كود ميزان من 6 أرقام يبدأ بـ2", () => {
+    const code = generateScaleCode();
+    expect(code).toMatch(/^2\d{5}$/);
+  });
+
+  it("isWeightProductUnit يميز وحدات الوزن", () => {
+    expect(isWeightProductUnit("kg")).toBe(true);
+    expect(isWeightProductUnit("liter")).toBe(true);
+    expect(isWeightProductUnit("piece")).toBe(false);
+    expect(isWeightProductUnit("box")).toBe(false);
+  });
+});
+
+describe("parseScaleBarcode", () => {
+  it("يفك ملصق ميزان: 2 + كود صنف 5 أرقام + وزن بالغرام 6 أرقام + تحقق", () => {
+    const info = parseScaleBarcode("2000010123456");
+    expect(info).toEqual({ itemCode: "00001", quantityMilli: 12345 });
+  });
+
+  it("يرفض الرموز غير المطابقة لاتفاقية الملصق", () => {
+    expect(parseScaleBarcode("4006381333931")).toBeNull();
+    expect(parseScaleBarcode("20001012345")).toBeNull();
+    expect(parseScaleBarcode("200010000006")).toBeNull();
+    expect(parseScaleBarcode("20001")).toBeNull();
+    expect(parseScaleBarcode("")).toBeNull();
+  });
+
+  it("يميّز كود الميزان القصير للمنتج عن ملصق الوزن الكامل", () => {
+    expect(generateScaleCode()).toMatch(/^2\d{5}$/);
+    expect(parseScaleBarcode(generateScaleCode())).toBeNull();
   });
 });
 

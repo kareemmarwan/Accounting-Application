@@ -8,6 +8,8 @@ import { BarcodeCameraScanner } from "@/components/barcode-camera-scanner";
 import {
   productFormSchema,
   generateBarcode,
+  generateScaleCode,
+  isWeightProductUnit,
   PRODUCT_UNITS,
   PRODUCT_UNIT_LABELS,
   fromMilli,
@@ -178,7 +180,14 @@ export function ProductForm({
             </button>
             <button
               type="button"
-              onClick={() => setValue("barcode", generateBarcode())}
+              onClick={() =>
+                setValue(
+                  "barcode",
+                  unit && isWeightProductUnit(unit)
+                    ? generateScaleCode()
+                    : generateBarcode()
+                )
+              }
               className="btn-outline shrink-0 text-xs"
             >
               توليد
@@ -187,6 +196,11 @@ export function ProductForm({
           <p className="mt-1 text-[10px] text-muted">
             امسح بالكاميرا أو ضع المؤشر هنا واستخدم الماسح — Enter ينقلك لاسم المنتج
           </p>
+          {unit && isWeightProductUnit(unit) && (
+            <p className="mt-1 text-[10px] font-medium text-primary-700">
+              منتج وزن: زر توليد يعطيك كود ميزان (6 أرقام يبدأ بـ2) — عيّن نفس الرقم في ميزانك، وعند طباعة الملصق سيُقرأ الوزن تلقائياً
+            </p>
+          )}
           {errors.barcode && (
             <p className="mt-1 text-xs text-danger">{errors.barcode.message}</p>
           )}

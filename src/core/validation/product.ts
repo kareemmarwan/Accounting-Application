@@ -170,6 +170,33 @@ export function generateBarcode(): string {
   return digits;
 }
 
+export interface ScaleBarcodeInfo {
+  itemCode: string;
+  quantityMilli: number;
+}
+
+export const SCALE_CODE_PREFIX = "2";
+
+export function isWeightProductUnit(unit: string): boolean {
+  return unit === "kg" || unit === "liter";
+}
+
+export function generateScaleCode(): string {
+  const item = `${Math.floor(Math.random() * 100000)}`.padStart(5, "0");
+  return `${SCALE_CODE_PREFIX}${item}`;
+}
+
+export function parseScaleBarcode(code: string): ScaleBarcodeInfo | null {
+  const digits = code.trim();
+  if (!/^\d{13}$/.test(digits) || !digits.startsWith(SCALE_CODE_PREFIX)) {
+    return null;
+  }
+  const itemCode = digits.slice(1, 6);
+  const weightGrams = Number(digits.slice(6, 12));
+  if (!Number.isFinite(weightGrams) || weightGrams <= 0) return null;
+  return { itemCode, quantityMilli: weightGrams };
+}
+
 export const INVENTORY_MOVEMENT_TYPES = ["in", "out", "adjust"] as const;
 
 export type InventoryMovementType = (typeof INVENTORY_MOVEMENT_TYPES)[number];
