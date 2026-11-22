@@ -13,6 +13,7 @@ import {
   Receipt,
   ScanBarcode,
   Settings,
+  ShieldCheck,
   ShoppingBag,
   Users,
   Wallet,
@@ -59,6 +60,7 @@ const TITLES: Array<[string, string]> = [
   ["/expenses", "المصروفات"],
   ["/accounts", "الحسابات المالية"],
   ["/reports", "التقارير"],
+  ["/admin", "إدارة المنصة"],
   ["/settings", "الإعدادات"]
 ];
 
@@ -73,11 +75,13 @@ const PLAN_NAMES: Record<string, string> = {
 export function AppShell({
   children,
   role,
-  subscription
+  subscription,
+  isAdmin = false
 }: {
   children: React.ReactNode;
   role?: NavRole;
   subscription?: SubscriptionBannerInfo | null;
+  isAdmin?: boolean;
 }) {
   const pathname = usePathname();
   const [bannerClosed, setBannerClosed] = useState(false);
@@ -125,6 +129,19 @@ export function AppShell({
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
+                pathname.startsWith("/admin")
+                  ? "bg-primary-50 text-primary-700"
+                  : "text-foreground hover:bg-muted-foreground/10"
+              }`}
+            >
+              <ShieldCheck className="h-5 w-5" aria-hidden />
+              إدارة المنصة
+            </Link>
+          )}
         </nav>
         {subscription && (
           <div className="border-t border-border p-3">
@@ -194,7 +211,7 @@ export function AppShell({
           </div>
         </header>
         <main className="flex-1 px-4 py-6 pb-28 md:px-6 md:pb-6">{children}</main>
-        <BottomNav role={role} />
+        <BottomNav role={role} isAdmin={isAdmin} />
       </div>
     </div>
   );

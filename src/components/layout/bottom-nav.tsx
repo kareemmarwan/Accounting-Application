@@ -13,6 +13,7 @@ import {
   Receipt,
   ScanBarcode,
   Settings,
+  ShieldCheck,
   ShoppingBag,
   Users,
   Wallet
@@ -54,7 +55,13 @@ function isAllowed(item: NavItem, role: NavRole | undefined): boolean {
   return role === undefined || item.roles.some((allowed) => allowed === role);
 }
 
-export function BottomNav({ role }: { role?: NavRole }) {
+export function BottomNav({
+  role,
+  isAdmin = false
+}: {
+  role?: NavRole;
+  isAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -78,6 +85,14 @@ export function BottomNav({ role }: { role?: NavRole }) {
   const sheetItems = moreItems.filter(
     (item) => isAllowed(item, role) && !barHrefs.has(item.href)
   );
+  if (isAdmin) {
+    sheetItems.unshift({
+      href: "/admin",
+      label: "إدارة المنصة",
+      icon: ShieldCheck,
+      roles: EVERYONE
+    });
+  }
 
   if (!homeItem || !salesItem || !fourth) return null;
 

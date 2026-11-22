@@ -29,6 +29,16 @@ export default async function AppLayout({
 
   let role: NavRole = null;
   let subscription: SubscriptionBannerInfo | null = null;
+  let isAdmin = false;
+
+  if (supabase && user) {
+    const { data: adminRow } = await supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    isAdmin = adminRow !== null;
+  }
 
   if (supabase && activeId) {
     const [membershipRes, businessRes] = await Promise.all([
@@ -87,7 +97,7 @@ export default async function AppLayout({
   }
 
   return (
-    <AppShell role={role} subscription={subscription}>
+    <AppShell role={role} subscription={subscription} isAdmin={isAdmin}>
       {children}
     </AppShell>
   );
