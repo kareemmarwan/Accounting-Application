@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Barcode, Loader2 } from "lucide-react";
+import { AlertCircle, Barcode, Camera, Loader2 } from "lucide-react";
+import { BarcodeCameraScanner } from "@/components/barcode-camera-scanner";
 import {
   productFormSchema,
   generateBarcode,
@@ -63,6 +64,7 @@ export function ProductForm({
   onCancel: () => void;
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
   const {
     register,
     handleSubmit,
@@ -78,6 +80,15 @@ export function ProductForm({
   });
 
   const unit = watch("unit");
+
+  function handleCameraCode(code: string) {
+    setValue("barcode", code.trim(), { shouldValidate: true });
+    setScanning(false);
+    setServerError(null);
+    window.setTimeout(() => {
+      document.getElementById("product-name")?.focus();
+    }, 60);
+  }
 
   async function onSubmit(input: ProductFormInput) {
     setServerError(null);
@@ -157,6 +168,15 @@ export function ProductForm({
             </div>
             <button
               type="button"
+              onClick={() => setScanning(true)}
+              className="btn-outline shrink-0 !px-3"
+              aria-label="مسح الباركود بالكاميرا"
+            >
+              <Camera className="h-5 w-5" aria-hidden />
+              <span className="hidden sm:inline">كاميرا</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setValue("barcode", generateBarcode())}
               className="btn-outline shrink-0 text-xs"
             >
@@ -164,7 +184,7 @@ export function ProductForm({
             </button>
           </div>
           <p className="mt-1 text-[10px] text-muted">
-            ضع المؤشر هنا وامسح الباركود بالماسح — Enter ينقلك لاسم المنتج
+            امسح بالكاميرا أو ضع المؤشر هنا واستخدم الماسح — Enter ينقلك لاسم المنتج
           </p>
           {errors.barcode && (
             <p className="mt-1 text-xs text-danger">{errors.barcode.message}</p>
@@ -242,6 +262,13 @@ export function ProductForm({
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           {serverError}
         </p>
+      )}
+
+      {scanning && (
+        <BarcodeCameraScanner
+          onClose={() => setScanning(false)}
+          onDetected={handleCameraCode}
+        />
       )}
 
       <div className="flex gap-2">

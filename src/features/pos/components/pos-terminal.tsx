@@ -34,7 +34,7 @@ import { checkout } from "@/features/pos/services/pos-service";
 import { isWeightUnit, posThemeFor } from "@/features/pos/themes";
 import { PosReceipt } from "@/features/pos/components/pos-receipt";
 import { PosAmendModal } from "@/features/pos/components/pos-amend-modal";
-import { BarcodeCameraScanner } from "@/features/pos/components/barcode-camera-scanner";
+import { BarcodeCameraScanner } from "@/components/barcode-camera-scanner";
 import type { CreateSaleResult } from "@/features/sales/services/sales-service";
 
 interface BusinessInfo {
