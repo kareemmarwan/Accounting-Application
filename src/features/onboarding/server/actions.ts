@@ -121,6 +121,13 @@ function parseAmountMinor(value: string): number {
   }
 }
 
+function zodIssueText(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => `${issue.path.join(".") || "؟"}: ${issue.message}`)
+    .join("؛ ")
+    .slice(0, 160);
+}
+
 export async function createBusinessWithSetup(
   input: OnboardingInput
 ): Promise<CreateBusinessResult> {
@@ -180,7 +187,10 @@ export async function createBusinessWithSetup(
     return { ok: false, error: mapDbError(error.message, error.code) };
   }
   if (typeof businessId !== "string") {
-    return { ok: false, error: "استجابة غير متوقعة من الخادم" };
+    return {
+      ok: false,
+      error: `استجابة غير متوقعة من الخادم (نوع المعرّف: ${typeof businessId})`
+    };
   }
 
   const [businessRes, accountsRes, categoriesRes] = await Promise.all([
@@ -221,7 +231,10 @@ export async function createBusinessWithSetup(
 
   const businessParsed = businessRowSchema.safeParse(businessRes.data);
   if (!businessParsed.success) {
-    return { ok: false, error: "استجابة غير متوقعة من الخادم" };
+    return {
+      ok: false,
+      error: `استجابة غير متوقعة من الخادم (صف المشروع: ${zodIssueText(businessParsed.error)})`
+    };
   }
   const row = businessParsed.data;
 
@@ -229,7 +242,10 @@ export async function createBusinessWithSetup(
   for (const raw of accountsRes.data) {
     const accountParsed = accountRowSchema.safeParse(raw);
     if (!accountParsed.success) {
-      return { ok: false, error: "استجابة غير متوقعة من الخادم" };
+      return {
+        ok: false,
+        error: `استجابة غير متوقعة من الخادم (حساب مالي: ${zodIssueText(accountParsed.error)})`
+      };
     }
     const a = accountParsed.data;
     accounts.push({
@@ -256,7 +272,10 @@ export async function createBusinessWithSetup(
   for (const raw of categoriesRes.data) {
     const categoryParsed = categoryRowSchema.safeParse(raw);
     if (!categoryParsed.success) {
-      return { ok: false, error: "استجابة غير متوقعة من الخادم" };
+      return {
+        ok: false,
+        error: `استجابة غير متوقعة من الخادم (تصنيف مصروف: ${zodIssueText(categoryParsed.error)})`
+      };
     }
     const c = categoryParsed.data;
     categories.push({
