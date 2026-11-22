@@ -9,7 +9,9 @@ import {
   Crown,
   HandCoins,
   LayoutDashboard,
+  Package,
   Receipt,
+  ScanBarcode,
   Settings,
   ShoppingBag,
   Users,
@@ -17,6 +19,7 @@ import {
   X
 } from "lucide-react";
 import { ConnectionStatus } from "@/components/connection-status";
+import { BottomNav } from "@/components/layout/bottom-nav";
 import { HeaderUser } from "@/components/layout/header-user";
 import type { SubscriptionBannerInfo } from "@/app/(app)/layout";
 
@@ -34,7 +37,9 @@ const EVERYONE: NavRole[] = ["owner", "manager", "accountant", "employee", null]
 
 const navItems: NavItem[] = [
   { href: "/dashboard", label: "لوحة التحكم", icon: LayoutDashboard, roles: EVERYONE },
+  { href: "/pos", label: "الكاشير", icon: ScanBarcode, roles: EVERYONE },
   { href: "/sales", label: "المبيعات", icon: BookOpen, roles: EVERYONE },
+  { href: "/products", label: "المنتجات", icon: Package, roles: FINANCIAL },
   { href: "/purchases", label: "المشتريات", icon: ShoppingBag, roles: FINANCIAL },
   { href: "/debts", label: "الديون", icon: HandCoins, roles: FINANCIAL },
   { href: "/contacts", label: "العملاء والموردون", icon: Users, roles: EVERYONE },
@@ -45,6 +50,8 @@ const navItems: NavItem[] = [
 ];
 
 const TITLES: Array<[string, string]> = [
+  ["/pos", "الكاشير"],
+  ["/products", "المنتجات"],
   ["/sales", "المبيعات"],
   ["/purchases", "المشتريات"],
   ["/debts", "الديون"],
@@ -186,7 +193,8 @@ export function AppShell({
             <HeaderUser />
           </div>
         </header>
-        <main className="flex-1 px-4 py-6 md:px-6">{children}</main>
+        <main className="flex-1 px-4 py-6 pb-28 md:px-6 md:pb-6">{children}</main>
+        <BottomNav role={role} />
       </div>
     </div>
   );
