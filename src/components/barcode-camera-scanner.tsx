@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CameraOff, Flashlight, FlashlightOff, Loader2, ScanLine, X } from "lucide-react";
 import { BrowserMultiFormatReader } from "@zxing/browser";
 import { BarcodeFormat, DecodeHintType } from "@zxing/library";
+import { acquireCameraStream } from "@/lib/camera-stream";
 
 const NATIVE_FORMATS = [
   "ean_13",
@@ -45,10 +46,13 @@ declare global {
 
 interface BarcodeCameraScannerProps {
   onClose: () => void;
-  onDetected: (code: string) => void;
+  onDetected: (code: string) => boolean | Promise<boolean>;
 }
 
 type ScannerStatus = "starting" | "ready" | "error";
+
+const SAME_CODE_REPEAT_DELAY_MS = 250;
+const ABSENT_CLEAR_MS = 550;
 
 function playBeep(): void {
   try {
@@ -95,7 +99,15 @@ export function BarcodeCameraScanner({
   const streamRef = useRef<MediaStream | null>(null);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const timerRef = useRef<number>(0);
-  const lastRef = useRef<{ code: string; at: number }>({ code: "", at: 0 });
+
+  const onDetectedRef = useRef(onDetected);
+  onDetectedRef.current = onDetected;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const lastCodeRef = useRef("");
+  const lastEmitAtRef = useRef(0);
+  const absentSinceRef = useRef<number | null>(null);
 
   const [status, setStatus] = useState<ScannerStatus>("starting");
   const [errorText, setErrorText] = useState("");
@@ -103,22 +115,32 @@ export function BarcodeCameraScanner({
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
 
-  const emit = useCallback(
-    (code: string) => {
-      const now = Date.now();
+  const noteFrame = useCallback((code: string | null): void => {
+    const now = Date.now();
+
+    if (code) {
+      absentSinceRef.current = null;
       if (
-        lastRef.current.code === code &&
-        now - lastRef.current.at < 1200
+        code !== lastCodeRef.current &&
+        now - lastEmitAtRef.current > SAME_CODE_REPEAT_DELAY_MS
       ) {
-        return;
+        lastCodeRef.current = code;
+        lastEmitAtRef.current = now;
+        playBeep();
+        navigator.vibrate?.(60);
+        void Promise.resolve(onDetectedRef.current(code)).then((keep) => {
+          if (keep === false) onCloseRef.current();
+        });
       }
-      lastRef.current = { code, at: now };
-      playBeep();
-      navigator.vibrate?.(60);
-      onDetected(code);
-    },
-    [onDetected]
-  );
+      return;
+    }
+
+    if (absentSinceRef.current === null) {
+      absentSinceRef.current = now;
+    } else if (now - absentSinceRef.current > ABSENT_CLEAR_MS) {
+      lastCodeRef.current = "";
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,18 +150,8 @@ export function BarcodeCameraScanner({
         if (!window.isSecureContext) {
           throw new DOMException("insecure", "NotSupportedError");
         }
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: false
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
+        const stream = await acquireCameraStream();
+        if (cancelled) return;
         streamRef.current = stream;
         const video = videoRef.current;
         if (!video) return;
@@ -166,15 +178,14 @@ export function BarcodeCameraScanner({
               detector
                 .detect(video)
                 .then((codes) => {
-                  const value = codes[0]?.rawValue;
-                  if (value) emit(value);
+                  noteFrame(codes[0]?.rawValue ?? null);
                 })
-                .catch(() => undefined)
+                .catch(() => noteFrame(null))
                 .finally(() => {
                   busy = false;
                 });
             }
-            timerRef.current = window.setTimeout(tick, 120);
+            timerRef.current = window.setTimeout(tick, 110);
           };
           tick();
           return;
@@ -193,8 +204,7 @@ export function BarcodeCameraScanner({
           stream,
           video,
           (result) => {
-            const text = result?.getText() ?? "";
-            if (text) emit(text);
+            noteFrame(result?.getText() ?? null);
           }
         );
         if (cancelled) {
@@ -216,10 +226,20 @@ export function BarcodeCameraScanner({
       window.clearTimeout(timerRef.current);
       controlsRef.current?.stop();
       controlsRef.current = null;
-      streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, [emit]);
+  }, [noteFrame]);
+
+  useEffect(() => {
+    function onVisible(): void {
+      const video = videoRef.current;
+      if (document.visibilityState === "visible" && video) {
+        void video.play().catch(() => undefined);
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   async function toggleTorch(): Promise<void> {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -309,7 +329,7 @@ export function BarcodeCameraScanner({
 
       <div className="p-3 text-center">
         <p className="text-xs text-white/80">
-          وجّه الكاميرا نحو الباركود — يُضاف المنتج تلقائياً عند القراءة
+          وجّه الكاميرا نحو الباركود — يُضاف مرة واحدة، وأبعده ثم أعده للمسحة التالية
           {engine ? ` — محرك: ${engine}` : ""}
         </p>
         <p className="mt-1 text-[10px] text-white/50">

@@ -81,13 +81,14 @@ export function ProductForm({
 
   const unit = watch("unit");
 
-  function handleCameraCode(code: string) {
+  function handleCameraCode(code: string): boolean {
     setValue("barcode", code.trim(), { shouldValidate: true });
     setScanning(false);
     setServerError(null);
     window.setTimeout(() => {
       document.getElementById("product-name")?.focus();
     }, 60);
+    return false;
   }
 
   async function onSubmit(input: ProductFormInput) {

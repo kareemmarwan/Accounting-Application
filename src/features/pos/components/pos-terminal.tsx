@@ -173,37 +173,36 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
     });
   }
 
-  function submitCode(code: string) {
-    if (!code) return;
-    void (async () => {
-      const product = await findProductByBarcode(code, business.id);
-      if (!product) {
-        setScanError(`لا يوجد منتج بالباركود: ${code}`);
-        return;
-      }
-      setScanError(null);
-      if (isWeightUnit(product.unit)) {
-        setWeightInput("1.000");
-        setWeightTarget(product);
-        return;
-      }
-      if (theme.lineNoteLabel) {
-        setNoteInput("");
-        setNoteTarget(product);
-        return;
-      }
-      addLine(product, 1000);
-    })();
+  async function submitCode(code: string): Promise<boolean> {
+    if (!code) return true;
+    const product = await findProductByBarcode(code, business.id);
+    if (!product) {
+      setScanError(`لا يوجد منتج بالباركود: ${code}`);
+      return false;
+    }
+    setScanError(null);
+    if (isWeightUnit(product.unit)) {
+      setWeightInput("1.000");
+      setWeightTarget(product);
+      return false;
+    }
+    if (theme.lineNoteLabel) {
+      setNoteInput("");
+      setNoteTarget(product);
+      return false;
+    }
+    addLine(product, 1000);
+    return true;
   }
 
   function handleScanSubmit() {
     const code = scan.trim();
     setScan("");
-    submitCode(code);
+    void submitCode(code);
   }
 
-  function handleCameraCode(code: string) {
-    submitCode(code.trim());
+  function handleCameraCode(code: string): Promise<boolean> {
+    return submitCode(code.trim());
   }
 
   function handleTileClick(product: LocalProduct) {
