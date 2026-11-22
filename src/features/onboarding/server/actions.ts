@@ -21,6 +21,8 @@ const businessRowSchema = z.object({
   plan: z.string()
 });
 
+const numericCellSchema = z.union([z.string(), z.number()]);
+
 const accountRowSchema = z.object({
   id: z.string().uuid(),
   business_id: z.string().uuid(),
@@ -28,10 +30,10 @@ const accountRowSchema = z.object({
   type: z.enum(["cash", "bank", "wallet", "other"]),
   provider: z.string().nullable(),
   currency: z.string(),
-  opening_balance: z.string(),
-  current_balance: z.string(),
-  total_deposits: z.string(),
-  total_withdrawals: z.string(),
+  opening_balance: numericCellSchema,
+  current_balance: numericCellSchema,
+  total_deposits: numericCellSchema,
+  total_withdrawals: numericCellSchema,
   gl_account_code: z.string(),
   is_active: z.boolean(),
   updated_at: z.string(),
@@ -113,7 +115,10 @@ function mapDbError(message: string, code: string | undefined): string {
   return `تعذر إنشاء المشروع (${code ?? "خطأ"}): ${message.slice(0, 160)}`;
 }
 
-function parseAmountMinor(value: string): number {
+function parseAmountMinor(value: string | number): number {
+  if (typeof value === "number") {
+    return Math.round(value * 100);
+  }
   try {
     return toMinor(value);
   } catch {
