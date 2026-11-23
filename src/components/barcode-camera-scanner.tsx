@@ -268,85 +268,72 @@ export function BarcodeCameraScanner({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-black"
-      role="dialog"
-      aria-modal="true"
+      className="relative w-full overflow-hidden rounded-xl bg-black"
       aria-label="مسح الباركود بالكاميرا"
     >
-      <div className="flex items-center justify-between gap-2 p-3 text-white">
-        <p className="flex items-center gap-2 text-sm font-bold">
-          <ScanLine className="h-5 w-5" aria-hidden />
-          مسح بالكاميرا
-        </p>
-        <div className="flex items-center gap-2">
+      <div className="relative h-44 w-full">
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          autoPlay
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-8 top-1/2 h-20 -translate-y-1/2 rounded-xl border-2 border-primary/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.3)]"
+        >
+          <span className="absolute inset-x-3 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-primary/80" />
+        </div>
+
+        <div className="absolute top-2 end-2 flex items-center gap-1.5">
           {torchSupported && (
             <button
               type="button"
               onClick={() => void toggleTorch()}
-              className="rounded-xl bg-white/10 p-2 hover:bg-white/20"
+              className="rounded-lg bg-black/50 p-1.5 text-white hover:bg-black/70"
               aria-label={torchOn ? "إطفاء الإضاءة" : "إضاءة الكاميرا"}
             >
               {torchOn ? (
-                <FlashlightOff className="h-5 w-5" aria-hidden />
+                <FlashlightOff className="h-4 w-4" aria-hidden />
               ) : (
-                <Flashlight className="h-5 w-5" aria-hidden />
+                <Flashlight className="h-4 w-4" aria-hidden />
               )}
             </button>
           )}
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-white/10 p-2 hover:bg-white/20"
+            className="rounded-lg bg-black/50 p-1.5 text-white hover:bg-black/70"
             aria-label="إغلاق الماسح"
           >
-            <X className="h-5 w-5" aria-hidden />
+            <X className="h-4 w-4" aria-hidden />
           </button>
-        </div>
-      </div>
-
-      <div className="relative flex-1 overflow-hidden">
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          autoPlay
-          className="h-full w-full object-cover"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-10 top-1/2 h-40 -translate-y-1/2 rounded-2xl border-2 border-primary/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.35)]"
-        >
-          <span className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-primary/70" />
         </div>
 
         {status === "starting" && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-            <p className="flex items-center gap-2 text-sm font-bold text-white">
-              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+            <p className="flex items-center gap-2 text-xs font-bold text-white">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               جارٍ تشغيل الكاميرا...
             </p>
           </div>
         )}
         {status === "error" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/80 p-6 text-center">
-            <CameraOff className="h-8 w-8 text-white/80" aria-hidden />
-            <p className="text-sm font-medium text-white">{errorText}</p>
-            <button type="button" onClick={onClose} className="btn-primary">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/80 p-4 text-center">
+            <CameraOff className="h-6 w-6 text-white/80" aria-hidden />
+            <p className="text-xs font-medium text-white">{errorText}</p>
+            <button type="button" onClick={onClose} className="btn-primary !px-3 !py-1.5 text-xs">
               إغلاق
             </button>
           </div>
         )}
       </div>
 
-      <div className="p-3 text-center">
-        <p className="text-xs text-white/80">
-          وجّه الكاميرا نحو الباركود — يُضاف مرة واحدة، وأبعده ثم أعده للمسحة التالية
-          {engine ? ` — محرك: ${engine}` : ""}
-        </p>
-        <p className="mt-1 text-[10px] text-white/50">
-          EAN-13 / EAN-8 / UPC-A / UPC-E / Code-128 / Code-39 / ITF
-        </p>
-      </div>
+      <p className="flex items-center justify-center gap-1.5 bg-black px-2 py-1 text-center text-[10px] text-white/70">
+        <ScanLine className="h-3 w-3" aria-hidden />
+        وجّه الكاميرا نحو الباركود — يُقبل مرة واحدة حتى تُبعده{engine ? ` — ${engine}` : ""}
+      </p>
     </div>
   );
 }

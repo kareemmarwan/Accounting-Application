@@ -196,6 +196,14 @@ export function ProductForm({
           <p className="mt-1 text-[10px] text-muted">
             امسح بالكاميرا أو ضع المؤشر هنا واستخدم الماسح — Enter ينقلك لاسم المنتج
           </p>
+          {scanning && (
+            <div className="mt-2">
+              <BarcodeCameraScannerLazy
+                onClose={() => setScanning(false)}
+                onDetected={handleCameraCode}
+              />
+            </div>
+          )}
           {unit && isWeightProductUnit(unit) && (
             <p className="mt-1 text-[10px] font-medium text-primary-700">
               منتج وزن: زر توليد يعطيك كود ميزان (6 أرقام يبدأ بـ2) — عيّن نفس الرقم في ميزانك، وعند طباعة الملصق سيُقرأ الوزن تلقائياً
@@ -277,13 +285,6 @@ export function ProductForm({
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
           {serverError}
         </p>
-      )}
-
-      {scanning && (
-        <BarcodeCameraScannerLazy
-          onClose={() => setScanning(false)}
-          onDetected={handleCameraCode}
-        />
       )}
 
       <div className="flex gap-2">

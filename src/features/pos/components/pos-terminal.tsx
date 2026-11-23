@@ -391,6 +391,14 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
                 إضافة
               </button>
             </div>
+            {cameraOpen && (
+              <div className="mt-3">
+                <BarcodeCameraScannerLazy
+                  onClose={() => setCameraOpen(false)}
+                  onDetected={handleCameraCode}
+                />
+              </div>
+            )}
             {scanError && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-danger">
@@ -711,13 +719,6 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
           </div>
         </aside>
       </div>
-
-      {cameraOpen && (
-        <BarcodeCameraScannerLazy
-          onClose={() => setCameraOpen(false)}
-          onDetected={handleCameraCode}
-        />
-      )}
 
       {amendOpen && (
         <PosAmendModal
