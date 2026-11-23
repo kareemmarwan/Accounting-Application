@@ -29,6 +29,33 @@ export const TRANSFER_METHODS: SalePaymentMethod[] = [
   "jawwal_pay"
 ];
 
+export const purchaseItemFormSchema = z
+  .object({
+    productId: z.string().uuid("منتج غير صالح").nullable(),
+    name: z.string().trim().min(1, "اسم الصنف مطلوب").max(200),
+    quantityMilli: z
+      .number()
+      .int("الكمية غير صالحة")
+      .positive("الكمية يجب أن تكون أكبر من صفر"),
+    unitPriceMinor: z
+      .number()
+      .int("سعر الوحدة غير صالح")
+      .min(0, "سعر الوحدة غير صالح"),
+    totalMinor: z.number().int("إجمالي السطر غير صالح").min(0)
+  })
+  .superRefine((item, ctx) => {
+    const expected = Math.round((item.quantityMilli * item.unitPriceMinor) / 1000);
+    if (item.totalMinor !== expected) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["totalMinor"],
+        message: "إجمالي السطر لا يطابق الكمية × السعر"
+      });
+    }
+  });
+
+export type PurchaseItemFormInput = z.infer<typeof purchaseItemFormSchema>;
+
 export const purchaseFormSchema = z
   .object({
     supplierId: z
@@ -60,7 +87,8 @@ export const purchaseFormSchema = z
       .optional()
       .default(""),
     transferReference: z.string().trim().max(60, "رقم التحويل طويل جداً").default(""),
-    notes: z.string().trim().max(500, "الملاحظات طويلة جداً").default("")
+    notes: z.string().trim().max(500, "الملاحظات طويلة جداً").default(""),
+    items: z.array(purchaseItemFormSchema).optional().default([])
   })
   .superRefine((data, ctx) => {
     let total = 0;
@@ -144,6 +172,17 @@ export const purchaseFormSchema = z
         path: ["supplierId"],
         message: "الجزء الآجل يتطلب تحديد المورد"
       });
+    }
+
+    if (data.items.length > 0) {
+      const itemsSum = data.items.reduce((acc, item) => acc + item.totalMinor, 0);
+      if (itemsSum !== total) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["items"],
+          message: "مجموع الأصناف لا يطابق الإجمالي"
+        });
+      }
     }
   });
 

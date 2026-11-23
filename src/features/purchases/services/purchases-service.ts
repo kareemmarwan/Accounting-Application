@@ -67,6 +67,15 @@ export async function createPurchase(
 
   const { op, netMinor, paidMinor, remainingMinor } = derived;
 
+  const items = (parsed.data.items ?? []).map((item) => ({
+    id: newId(),
+    productId: item.productId,
+    name: item.name,
+    quantityMilli: item.quantityMilli,
+    unitPriceMinor: item.unitPriceMinor,
+    totalMinor: item.totalMinor
+  }));
+
   let engineResult: PurchaseResult;
   try {
     engineResult = buildPurchaseEntry(op);
@@ -171,6 +180,8 @@ export async function createPurchase(
       db.journalEntries,
       db.journalEntryLines,
       db.attachmentsMeta,
+      db.products,
+      db.inventoryMovements,
       db.outbox
     ],
     async () => {
@@ -205,6 +216,32 @@ export async function createPurchase(
         });
       }
 
+      for (const item of items) {
+        if (!item.productId) continue;
+        const product = await db.products.get(item.productId);
+        if (product && product.businessId === ctx.businessId && !product.deletedAt) {
+          await db.products.put({
+            ...product,
+            quantityMilli: product.quantityMilli + item.quantityMilli,
+            updatedAt: createdAt,
+            version: product.version + 1
+          });
+        }
+        await db.inventoryMovements.put({
+          id: newId(),
+          businessId: ctx.businessId,
+          productId: item.productId,
+          type: "in",
+          quantityMilli: item.quantityMilli,
+          unitCostMinor: item.unitPriceMinor,
+          refType: "purchase",
+          refId: purchaseId,
+          occurredAt: op.occurredAt,
+          notes: `شراء — ${item.name}`,
+          createdBy: ctx.createdBy ?? ""
+        });
+      }
+
       await db.journalEntries.put(entry);
       await db.journalEntryLines.bulkPut(entryLines);
       await db.purchases.put(purchase);
@@ -235,6 +272,17 @@ export async function createPurchase(
             debtId: purchase.debtId,
             notes: parsed.data.notes
           },
+          items:
+            items.length > 0
+              ? items.map((item) => ({
+                  id: item.id,
+                  productId: item.productId,
+                  name: item.name,
+                  quantityMilli: item.quantityMilli,
+                  unitPriceMinor: item.unitPriceMinor,
+                  totalMinor: item.totalMinor
+                }))
+              : undefined,
           debt: debt
             ? {
                 id: debt.id,

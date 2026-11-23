@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Loader2, ShoppingBag } from "lucide-react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { AlertCircle, Loader2, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { toMinor, fromMinor } from "@/core/accounting/money";
+import { getDB } from "@/core/db/db";
+import { parseQuantityToMilli } from "@/core/validation/product";
 import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_METHODS
@@ -32,6 +35,24 @@ export interface PurchaseAccountOption {
   type: FinancialAccountRef["type"];
 }
 
+interface PurchaseLine {
+  productId: string;
+  name: string;
+  quantity: string;
+  unitPrice: string;
+}
+
+function lineTotalMinor(line: PurchaseLine): number | null {
+  try {
+    const milli = parseQuantityToMilli(line.quantity || "0");
+    if (!Number.isFinite(milli) || milli <= 0) return null;
+    const price = toMinor(line.unitPrice || "0");
+    return Math.round((milli * price) / 1000);
+  } catch {
+    return null;
+  }
+}
+
 function toDatetimeLocal(iso: string): string {
   const date = new Date(iso);
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -55,6 +76,17 @@ export function PurchaseForm({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [lines, setLines] = useState<PurchaseLine[]>([]);
+
+  const products = useLiveQuery(
+    () =>
+      getDB()
+        .products.where("businessId")
+        .equals(businessId)
+        .filter((product) => !product.deletedAt && product.isActive)
+        .toArray(),
+    []
+  );
 
   const {
     register,
@@ -75,7 +107,8 @@ export function PurchaseForm({
       accountId: "",
       paidAmount: "",
       transferReference: "",
-      notes: ""
+      notes: "",
+      items: []
     }
   });
 
@@ -84,6 +117,22 @@ export function PurchaseForm({
   const discount = watch("discount");
   const paidAmount = watch("paidAmount");
   const accountId = watch("accountId");
+
+  const linesTotal = useMemo(() => {
+    let sum = 0;
+    for (const line of lines) {
+      const value = lineTotalMinor(line);
+      if (value === null) return null;
+      sum += value;
+    }
+    return sum;
+  }, [lines]);
+
+  useEffect(() => {
+    if (linesTotal !== null && lines.length > 0) {
+      setValue("totalAmount", fromMinor(linesTotal), { shouldValidate: true });
+    }
+  }, [linesTotal, lines.length, setValue]);
 
   const netPreview = useMemo(() => {
     try {
@@ -135,20 +184,88 @@ export function PurchaseForm({
     setReceiptFile(file);
   }
 
+  function updateLine(index: number, patch: Partial<PurchaseLine>) {
+    setLines((current) =>
+      current.map((line, position) =>
+        position === index ? { ...line, ...patch } : line
+      )
+    );
+  }
+
+  function removeLine(index: number) {
+    setLines((current) => current.filter((_, position) => position !== index));
+  }
+
+  function addLine() {
+    setLines((current) => [
+      ...current,
+      { productId: "", name: "", quantity: "1.000", unitPrice: "" }
+    ]);
+  }
+
+  function buildItems():
+    | { ok: true; items: PurchaseFormInput["items"] }
+    | { ok: false; error: string } {
+    if (lines.length === 0) return { ok: true, items: [] };
+    const items: NonNullable<PurchaseFormInput["items"]> = [];
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index]!;
+      const total = lineTotalMinor(line);
+      if (total === null) {
+        return {
+          ok: false,
+          error: `السطر ${index + 1}: الكمية والسعر مطلوبان (الكمية أكبر من صفر)`
+        };
+      }
+      const name = line.productId
+        ? products?.find((product) => product.id === line.productId)?.name ??
+          line.name
+        : line.name.trim();
+      if (!name) {
+        return { ok: false, error: `السطر ${index + 1}: اسم الصنف مطلوب` };
+      }
+      const milli = parseQuantityToMilli(line.quantity || "0");
+      items.push({
+        productId: line.productId || null,
+        name,
+        quantityMilli: milli,
+        unitPriceMinor: toMinor(line.unitPrice || "0"),
+        totalMinor: total
+      });
+    }
+    const sum = items.reduce((acc, item) => acc + item.totalMinor, 0);
+    try {
+      if (sum !== toMinor(totalAmount || "0")) {
+        return { ok: false, error: "مجموع الأصناف لا يطابق الإجمالي" };
+      }
+    } catch {
+      return { ok: false, error: "الإجمالي غير صالح" };
+    }
+    return { ok: true, items };
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     setSuccessMessage(null);
+    const built = buildItems();
+    if (!built.ok) {
+      setServerError(built.error);
+      return;
+    }
     const accountRef = accounts.find(
       (account) => account.id === values.accountId
     );
     try {
-      const result = await createPurchase(values, {
-        businessId,
-        accountRef: accountRef
-          ? { id: accountRef.id, type: accountRef.type }
-          : undefined,
-        receiptFile
-      });
+      const result = await createPurchase(
+        { ...values, items: built.items },
+        {
+          businessId,
+          accountRef: accountRef
+            ? { id: accountRef.id, type: accountRef.type }
+            : undefined,
+          receiptFile
+        }
+      );
       reset({
         supplierId: "",
         occurredAt: toDatetimeLocal(new Date().toISOString()),
@@ -159,8 +276,10 @@ export function PurchaseForm({
         accountId: "",
         paidAmount: "",
         transferReference: "",
-        notes: ""
+        notes: "",
+        items: []
       });
+      setLines([]);
       setReceiptFile(null);
       setSuccessMessage(
         result.debt
@@ -264,6 +383,116 @@ export function PurchaseForm({
           />
         </div>
 
+        <div className="space-y-2 sm:col-span-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium">
+              أصناف المنتجات (اختياري — يرفع المخزون تلقائياً)
+            </label>
+            <button
+              type="button"
+              onClick={addLine}
+              className="btn-outline !px-3 !py-1.5 text-xs"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              إضافة صنف
+            </button>
+          </div>
+
+          {lines.length > 0 && (
+            <div className="space-y-2 rounded-xl border border-border p-3">
+              {lines.map((line, index) => {
+                const total = lineTotalMinor(line);
+                return (
+                  <div
+                    key={index}
+                    className="grid grid-cols-[1fr_auto] gap-2 rounded-xl border border-border bg-surface p-2 sm:grid-cols-[2fr_1fr_1fr_auto_auto]"
+                  >
+                    <div className="space-y-1">
+                      <select
+                        value={line.productId}
+                        onChange={(event) =>
+                          updateLine(index, {
+                            productId: event.target.value,
+                            name:
+                              products?.find(
+                                (product) => product.id === event.target.value
+                              )?.name ?? ""
+                          })
+                        }
+                        className="input text-xs"
+                        aria-label={`منتج السطر ${index + 1}`}
+                      >
+                        <option value="">صنف يدوي (بلا منتج)</option>
+                        {(products ?? []).map((product) => (
+                          <option key={product.id} value={product.id}>
+                            {product.name}
+                          </option>
+                        ))}
+                      </select>
+                      {!line.productId && (
+                        <input
+                          value={line.name}
+                          onChange={(event) =>
+                            updateLine(index, { name: event.target.value })
+                          }
+                          placeholder="اسم الصنف"
+                          className="input text-xs"
+                          aria-label={`اسم السطر ${index + 1}`}
+                        />
+                      )}
+                    </div>
+                    <input
+                      value={line.quantity}
+                      onChange={(event) =>
+                        updateLine(index, { quantity: event.target.value })
+                      }
+                      placeholder="الكمية 1.000"
+                      className="input num !px-2 text-xs"
+                      dir="ltr"
+                      inputMode="decimal"
+                      aria-label={`كمية السطر ${index + 1}`}
+                    />
+                    <input
+                      value={line.unitPrice}
+                      onChange={(event) =>
+                        updateLine(index, { unitPrice: event.target.value })
+                      }
+                      placeholder="السعر 0.00"
+                      className="input num !px-2 text-xs"
+                      dir="ltr"
+                      inputMode="decimal"
+                      aria-label={`سعر السطر ${index + 1}`}
+                    />
+                    <span className="num self-center text-xs font-bold" dir="ltr">
+                      {total !== null ? formatCurrency(total) : "—"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeLine(index)}
+                      className="self-center text-muted hover:text-danger"
+                      aria-label={`حذف السطر ${index + 1}`}
+                    >
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                    </button>
+                  </div>
+                );
+              })}
+              <p className="text-xs font-medium text-muted">
+                مجموع الأصناف:{" "}
+                <span className="num font-bold text-foreground" dir="ltr">
+                  {linesTotal !== null ? formatCurrency(linesTotal) : "—"}
+                </span>{" "}
+                — يُعبّأ الإجمالي تلقائياً
+              </p>
+            </div>
+          )}
+          {lines.length === 0 && (
+            <p className="text-xs text-muted">
+              بلا أصناف = فاتورة مالية فقط. بأصناف = يُرفع مخزون المنتجات ويُسجَّل سجل الحركة.
+            </p>
+          )}
+        </div>
+
         <div className="space-y-1.5">
           <label htmlFor="p-total" className="block text-sm font-medium">
             الإجمالي (₪)
@@ -275,10 +504,14 @@ export function PurchaseForm({
             dir="ltr"
             className={`${inputClass} num`}
             placeholder="0.00"
+            readOnly={lines.length > 0}
             {...register("totalAmount")}
           />
           {errors.totalAmount && (
             <p className="text-xs text-danger">{errors.totalAmount.message}</p>
+          )}
+          {lines.length > 0 && (
+            <p className="text-xs text-muted">محسوب من الأصناف تلقائياً</p>
           )}
         </div>
 

@@ -228,6 +228,17 @@ export const saleAddItemsPayloadSchema = z
 
 export type SaleAddItemsPayload = z.infer<typeof saleAddItemsPayloadSchema>;
 
+export const purchaseItemPayloadSchema = z.object({
+  id: uuid,
+  productId: nullableUuid,
+  name: z.string().trim().min(1, "اسم الصنف مطلوب").max(200),
+  quantityMilli: milli,
+  unitPriceMinor: minor,
+  totalMinor: minor
+});
+
+export type PurchaseItemPayload = z.infer<typeof purchaseItemPayloadSchema>;
+
 export const purchasePayloadSchema = z  .object({
     clientOpId: uuid,
     createdAt: iso,
@@ -249,6 +260,7 @@ export const purchasePayloadSchema = z  .object({
       debtId: nullableUuid,
       notes: text
     }),
+    items: z.array(purchaseItemPayloadSchema).optional(),
     debt: z
       .object({
         id: uuid,
@@ -280,6 +292,16 @@ export const purchasePayloadSchema = z  .object({
         path: ["purchase", "remainingAmountMinor"],
         message: "المتبقي لا يطابق الصافي − المدفوع"
       });
+    }
+    if (data.items && data.items.length > 0) {
+      const itemsSum = data.items.reduce((acc, item) => acc + item.totalMinor, 0);
+      if (itemsSum !== totalAmountMinor) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["items"],
+          message: "مجموع الأصناف لا يطابق إجمالي الفاتورة"
+        });
+      }
     }
   });
 

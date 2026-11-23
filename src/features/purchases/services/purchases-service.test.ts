@@ -10,6 +10,7 @@ import {
 const BUSINESS_ID = "b0000000-0000-0000-0000-000000000002";
 const ACCOUNT_ID = "a0000000-0000-0000-0000-000000000002";
 const SUPPLIER_ID = "d0000000-0000-0000-0000-000000000002";
+const PRODUCT_ID = "60000000-0000-0000-0000-000000000002";
 
 async function seed() {
   const db = getDB();
@@ -57,6 +58,23 @@ async function seed() {
     version: 1,
     deletedAt: null
   });
+  await db.products.put({
+    id: PRODUCT_ID,
+    businessId: BUSINESS_ID,
+    name: "زيت طهير",
+    category: "مواد غذائية",
+    unit: "liter",
+    barcode: "",
+    purchasePriceMinor: 500,
+    salePriceMinor: 700,
+    quantityMilli: 10000,
+    minQuantityMilli: 2000,
+    isActive: true,
+    updatedAt: new Date().toISOString(),
+    syncStatus: "synced",
+    version: 1,
+    deletedAt: null
+  });
 }
 
 const ctx: CreatePurchaseContext = {
@@ -78,6 +96,7 @@ function validInput(
     paidAmount: "300.00",
     transferReference: "",
     notes: "",
+    items: [],
     ...overrides
   };
 }
@@ -237,5 +256,74 @@ describe("createPurchase", () => {
     expect(result.purchase.purchaseNumber).toMatch(/^L-[0-9a-f]{8}$/);
     expect(result.purchase.syncStatus).toBe("pending");
     expect(result.purchase.transferReference).toBe("TRX-2026-0007");
+  });
+
+  it("شراء بأصناف: يرفع مخزون المنتج محلياً ويسجل حركة 'in' ويرفق الأصناف بالحمولة", async () => {
+    const result = await createPurchase(
+      validInput({
+        description: "شراء بضائع بأصناف",
+        totalAmount: "150.00",
+        paidAmount: "150.00",
+        items: [
+          {
+            productId: PRODUCT_ID,
+            name: "زيت طهير",
+            quantityMilli: 20000,
+            unitPriceMinor: 500,
+            totalMinor: 10000
+          },
+          {
+            productId: null,
+            name: "كراتين متنوعة",
+            quantityMilli: 50000,
+            unitPriceMinor: 100,
+            totalMinor: 5000
+          }
+        ]
+      }),
+      ctx
+    );
+
+    const product = await getDB().products.get(PRODUCT_ID);
+    expect(product?.quantityMilli).toBe(30000);
+
+    const movements = await getDB().inventoryMovements
+      .where("refId")
+      .equals(result.purchase.id)
+      .toArray();
+    expect(movements).toHaveLength(1);
+    expect(movements[0]?.type).toBe("in");
+    expect(movements[0]?.refType).toBe("purchase");
+    expect(movements[0]?.quantityMilli).toBe(20000);
+
+    const outboxItems = await getDB().outbox.toArray();
+    expect(outboxItems).toHaveLength(1);
+    const payload = outboxItems[0]?.payload as {
+      items?: Array<{ productId: string | null; quantityMilli: number }>;
+    };
+    expect(payload.items).toHaveLength(2);
+    expect(payload.items?.[0]?.productId).toBe(PRODUCT_ID);
+    expect(payload.items?.[1]?.productId).toBeNull();
+  });
+
+  it("يرفض أصنافاً مجموعها لا يطابق الإجمالي", async () => {
+    await expect(
+      createPurchase(
+        validInput({
+          totalAmount: "150.00",
+          paidAmount: "150.00",
+          items: [
+            {
+              productId: PRODUCT_ID,
+              name: "زيت طهير",
+              quantityMilli: 20000,
+              unitPriceMinor: 500,
+              totalMinor: 10000
+            }
+          ]
+        }),
+        ctx
+      )
+    ).rejects.toThrow("مجموع الأصناف لا يطابق الإجمالي");
   });
 });
