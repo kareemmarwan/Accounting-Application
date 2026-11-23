@@ -54,6 +54,8 @@ type ScannerStatus = "starting" | "ready" | "error";
 const SAME_CODE_REPEAT_DELAY_MS = 250;
 const ABSENT_CLEAR_MS = 550;
 
+let sharedAudioCtx: AudioContext | null = null;
+
 function playBeep(): void {
   try {
     const Ctx =
@@ -61,17 +63,21 @@ function playBeep(): void {
       (window as unknown as { webkitAudioContext?: typeof AudioContext })
         .webkitAudioContext;
     if (!Ctx) return;
-    const ctx = new Ctx();
-    const oscillator = ctx.createOscillator();
-    const gain = ctx.createGain();
+    if (!sharedAudioCtx || sharedAudioCtx.state === "closed") {
+      sharedAudioCtx = new Ctx();
+    }
+    if (sharedAudioCtx.state === "suspended") {
+      void sharedAudioCtx.resume();
+    }
+    const oscillator = sharedAudioCtx.createOscillator();
+    const gain = sharedAudioCtx.createGain();
     oscillator.type = "square";
     oscillator.frequency.value = 1046;
     gain.gain.value = 0.08;
     oscillator.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(sharedAudioCtx.destination);
     oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.09);
-    oscillator.onended = () => void ctx.close();
+    oscillator.stop(sharedAudioCtx.currentTime + 0.09);
   } catch {
     return;
   }
@@ -198,7 +204,12 @@ export function BarcodeCameraScanner({
         hints.set(DecodeHintType.POSSIBLE_FORMATS, ZXING_FORMATS);
         hints.set(DecodeHintType.TRY_HARDER, true);
         const reader = new BrowserMultiFormatReader(
-          hints as Map<DecodeHintType, never>
+          hints as Map<DecodeHintType, never>,
+          {
+            delayBetweenScanAttempts: 50,
+            delayBetweenScanSuccess: 100,
+            tryPlayVideoTimeout: 5000
+          }
         );
         const controls = await reader.decodeFromStream(
           stream,

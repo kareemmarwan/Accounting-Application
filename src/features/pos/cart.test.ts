@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   cartTotals,
   lineTotalMinor,
-  makeCartKey,
   newCartLine,
   validateCart,
   type PosCartLine
@@ -64,13 +63,20 @@ describe("validateCart", () => {
   });
 });
 
-describe("makeCartKey / newCartLine", () => {
-  it("يجمع نفس المنتج بدون ملاحظة ويفرّق بملاحظة", () => {
-    expect(makeCartKey("p1", "")).toBe("p:p1");
-    expect(makeCartKey("p1", "مقاس L")).toBe("p:p1:مقاس L");
-    const product = { id: "p9", name: "قميص", unit: "piece" as const, salePriceMinor: 5000 };
+describe("newCartLine", () => {
+  it("كل مسحة سطر مستقل بمفتاح فريد — حذف سطر لا يمس الآخرين", () => {
+    const product = { id: "p9", name: "محارم", unit: "piece" as const, salePriceMinor: 500 };
+    const first = newCartLine(product, 1000);
+    const second = newCartLine(product, 1000);
+    expect(first.key).not.toBe(second.key);
+    expect(first.quantityMilli).toBe(1000);
+    expect(second.quantityMilli).toBe(1000);
+  });
+
+  it("المفتاح يحمل الملاحظة لتمييز الأسطر المشابهة", () => {
+    const product = { id: "p8", name: "قميص", unit: "piece" as const, salePriceMinor: 5000 };
     const withNote = newCartLine(product, 1000, "أحمر");
-    expect(withNote.key).toBe("p:p9:أحمر");
+    expect(withNote.key).toContain("أحمر");
     expect(withNote.unitPriceMinor).toBe(5000);
   });
 });

@@ -66,8 +66,13 @@ export function validateCart(
   return { ok: true, error: null };
 }
 
-export function makeCartKey(productId: string, lineNote: string): string {
-  return lineNote ? `p:${productId}:${lineNote}` : `p:${productId}`;
+let lineSeq = 0;
+
+export function nextLineKey(productId: string, lineNote: string): string {
+  lineSeq += 1;
+  return lineNote
+    ? `p:${productId}#${lineSeq}:${lineNote}`
+    : `p:${productId}#${lineSeq}`;
 }
 
 export function newCartLine(
@@ -81,7 +86,7 @@ export function newCartLine(
   lineNote = ""
 ): PosCartLine {
   return {
-    key: makeCartKey(product.id, lineNote),
+    key: nextLineKey(product.id, lineNote),
     productId: product.id,
     name: product.name,
     unit: product.unit,

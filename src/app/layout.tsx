@@ -5,6 +5,7 @@ import "@fontsource/cairo/600.css";
 import "@fontsource/cairo/700.css";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { ZoomGuard } from "@/components/zoom-guard";
 
 export const metadata: Metadata = {
   title: {
@@ -29,7 +30,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#16A34A",
   width: "device-width",
-  initialScale: 1
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover"
 };
 
 export default function RootLayout({
@@ -40,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="font-sans min-h-screen flex flex-col">
+        <ZoomGuard />
         {children}
         <ServiceWorkerRegister />
       </body>

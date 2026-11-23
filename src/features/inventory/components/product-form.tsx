@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Barcode, Camera, Loader2 } from "lucide-react";
-import { BarcodeCameraScanner } from "@/components/barcode-camera-scanner";
+import { BarcodeCameraScannerLazy } from "@/components/barcode-camera-scanner-lazy";
 import {
   productFormSchema,
   generateBarcode,
@@ -280,7 +280,7 @@ export function ProductForm({
       )}
 
       {scanning && (
-        <BarcodeCameraScanner
+        <BarcodeCameraScannerLazy
           onClose={() => setScanning(false)}
           onDetected={handleCameraCode}
         />

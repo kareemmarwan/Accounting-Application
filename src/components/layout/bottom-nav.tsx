@@ -105,14 +105,24 @@ export function BottomNav({
         <BarCell item={homeItem} active={pathname.startsWith("/dashboard")} />
         <BarCell item={salesItem} active={pathname.startsWith("/sales")} />
         <div className="flex flex-1 items-start justify-center">
-          <Link
-            href="/pos"
-            aria-label="الكاشير — بيع سريع"
-            className="-mt-7 flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-4 ring-surface transition-transform active:scale-95"
-          >
-            <ScanBarcode className="h-6 w-6" aria-hidden />
-            <span className="text-[10px] font-bold leading-none">بيع</span>
-          </Link>
+          <div className="relative -mt-7 h-16 w-16">
+            <span
+              className="sell-pulse absolute inset-0 rounded-full border-2 border-primary"
+              aria-hidden
+            />
+            <span
+              className="sell-pulse sell-pulse-delay absolute inset-0 rounded-full border-2 border-primary"
+              aria-hidden
+            />
+            <Link
+              href="/pos"
+              aria-label="الكاشير — بيع سريع"
+              className="relative flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-4 ring-surface transition-transform active:scale-95"
+            >
+              <ScanBarcode className="h-6 w-6" aria-hidden />
+              <span className="text-[10px] font-bold leading-none">بيع</span>
+            </Link>
+          </div>
         </div>
         <BarCell item={fourth} active={pathname.startsWith(fourth.href)} />
         <button

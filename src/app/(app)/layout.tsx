@@ -32,16 +32,12 @@ export default async function AppLayout({
   let isAdmin = false;
 
   if (supabase && user) {
-    const { data: adminRow } = await supabase
-      .from("platform_admins")
-      .select("user_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    isAdmin = adminRow !== null;
-  }
-
-  if (supabase && activeId) {
-    const [membershipRes, businessRes] = await Promise.all([
+    const [adminRes, membershipRes, businessRes] = await Promise.all([
+      supabase
+        .from("platform_admins")
+        .select("user_id")
+        .eq("user_id", user.id)
+        .maybeSingle(),
       supabase
         .from("business_members")
         .select("role")
@@ -54,6 +50,8 @@ export default async function AppLayout({
         .eq("id", activeId)
         .maybeSingle()
     ]);
+
+    isAdmin = adminRes.data !== null;
 
     const membershipRole = (membershipRes.data as { role?: string } | null)?.role;
     if (

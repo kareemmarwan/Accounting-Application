@@ -134,16 +134,7 @@ export function PosAmendModal({
 
   function addLine(product: { id: string; name: string; unit: PosCartLine["unit"]; salePriceMinor: number }, quantityMilli: number, lineNote = "") {
     setError(null);
-    const key = product.id + (lineNote ? `:${lineNote}` : "");
-    setNewLines((current) => {
-      const existing = current.find((line) => line.key === key);
-      if (existing) {
-        return current.map((line) =>
-          line.key === key ? { ...line, quantityMilli: line.quantityMilli + quantityMilli } : line
-        );
-      }
-      return [...current, newCartLine(product, quantityMilli, lineNote)];
-    });
+    setNewLines((current) => [...current, newCartLine(product, quantityMilli, lineNote)]);
   }
 
   async function handleScan() {

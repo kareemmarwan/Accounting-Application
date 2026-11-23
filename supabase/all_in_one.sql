@@ -57,7 +57,9 @@ begin
   return new;
 end $$;
 
-create or replace function next_doc_number(bid uuid, doc_type text, at timestamptz default now())
+drop function if exists next_doc_number(uuid, text, timestamptz);
+
+create or replace function next_doc_number(bid uuid, p_doc_type text, p_at timestamptz default now())
 returns text
 language plpgsql security definer set search_path = public as $$
 declare
@@ -65,14 +67,14 @@ declare
   y int;
   n int;
 begin
-  if doc_type = 'sale' then prefix := 'S';
-  elsif doc_type = 'purchase' then prefix := 'P';
-  elsif doc_type = 'journal' then prefix := 'JE';
-  else raise exception 'doc_type غير مدعوم: %', doc_type;
+  if p_doc_type = 'sale' then prefix := 'S';
+  elsif p_doc_type = 'purchase' then prefix := 'P';
+  elsif p_doc_type = 'journal' then prefix := 'JE';
+  else raise exception 'نوع مستند غير مدعوم: %', p_doc_type;
   end if;
-  y := extract(year from at)::int;
+  y := extract(year from p_at)::int;
   insert into business_sequences (business_id, doc_type, prefix, last_number, year)
-  values (bid, doc_type, prefix, 1, y)
+  values (bid, p_doc_type, prefix, 1, y)
   on conflict (business_id, doc_type, year)
   do update set last_number = business_sequences.last_number + 1
   returning last_number into n;
@@ -2189,3 +2191,76 @@ revoke execute on function void_posted_document(uuid, text, uuid, text) from pub
 grant execute on function void_posted_document(uuid, text, uuid, text) to authenticated;
 
 commit;
+
+-- =====================================================================
+-- 0008_fix_balance_trigger.sql (المطلوب تشغيله الآن)
+-- =====================================================================
+-- 0008: إصلاح حارس توازن القيود
+-- المشكلة: التريغر القديم على مستوى الجملة (FOR EACH STATEMENT) يفحص التوازن بعد كل
+-- عبارة إدراج منفصلة، ودوال RPC تدرج سطور القيد في عبارات متعاقبة (مدين ثم دائن)
+-- فيفشل الفحص الوسيط «مدين=100 دائن=0» رغم أن القيد النهائي متوازن.
+-- الحل: Constraint Trigger مؤجّل (DEFERRABLE INITIALLY DEFERRED) على مستوى الصف
+-- يُنفّذ عند نهاية المعاملة بعد اكتمال كل السطور.
+
+drop trigger if exists journal_lines_balance_guard on journal_entry_lines;
+drop function if exists assert_balanced_entry();
+
+create or replace function assert_balanced_entry_row()
+returns trigger
+language plpgsql as $$
+declare
+  total_debit numeric(14,2);
+  total_credit numeric(14,2);
+  bad_lines int;
+begin
+  if new.debit < 0 or new.credit < 0
+    or (new.debit > 0 and new.credit > 0)
+    or (new.debit = 0 and new.credit = 0) then
+    raise exception 'سطر قيد فاسد: مدين=% دائن=%', new.debit, new.credit;
+  end if;
+
+  select coalesce(sum(debit), 0), coalesce(sum(credit), 0)
+    into total_debit, total_credit
+    from journal_entry_lines
+    where entry_id = new.entry_id;
+
+  if total_debit <> total_credit then
+    raise exception 'قيد غير متوازن: مدين=% دائن=% (entry=%)', total_debit, total_credit, new.entry_id;
+  end if;
+  if total_debit = 0 then
+    raise exception 'قيد بقيمة صفر (entry=%)', new.entry_id;
+  end if;
+
+  select count(*) into bad_lines
+    from journal_entry_lines
+    where entry_id = new.entry_id
+      and ((debit > 0 and credit > 0) or (debit = 0 and credit = 0) or debit < 0 or credit < 0);
+  if bad_lines > 0 then
+    raise exception 'سطور قيد فاسدة (entry=%)', new.entry_id;
+  end if;
+
+  return null;
+end $$;
+
+create constraint trigger journal_lines_balance_guard
+after insert on journal_entry_lines
+deferrable initially deferred
+for each row execute function assert_balanced_entry_row();
+
+-- تحقق فوري إضافي (غير مؤجل) على صحة السطر نفسه فقط، بلا فحص مجموع
+create or replace function assert_line_shape()
+returns trigger
+language plpgsql as $$
+begin
+  if new.debit < 0 or new.credit < 0
+    or (new.debit > 0 and new.credit > 0)
+    or (new.debit = 0 and new.credit = 0) then
+    raise exception 'سطر قيد فاسد: مدين=% دائن=%', new.debit, new.credit;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists journal_line_shape_guard on journal_entry_lines;
+create trigger journal_line_shape_guard
+before insert on journal_entry_lines
+for each row execute function assert_line_shape();
