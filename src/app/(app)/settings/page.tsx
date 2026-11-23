@@ -8,7 +8,10 @@ import { getActiveBusinessId } from "@/features/business/server/business-context
 import { SignOutButton } from "@/features/settings/components/sign-out-button";
 import { InviteMemberForm } from "@/features/settings/components/invite-member-form";
 import { BackupExport } from "@/features/settings/components/backup-export";
+import { BusinessInfoForm } from "@/features/settings/components/business-info-form";
+import { DangerZone } from "@/features/settings/components/danger-zone";
 import { BusinessSwitcher } from "@/components/layout/business-switcher";
+import { AppTourReplay } from "@/features/onboarding/components/app-tour-replay";
 import { BUSINESS_TYPE_LABELS } from "@/core/validation/onboarding";
 import { getSubscriptionOverview } from "@/features/subscription/server/actions";
 import { SubscriptionCard } from "@/features/subscription/components/subscription-card";
@@ -62,7 +65,7 @@ export default async function SettingsPage() {
   if (!supabase) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <Header />
+        <Header isOwner={false} />
         <div className="card">
           <p className="text-sm leading-relaxed text-muted">
             لم يتم إعداد Supabase بعد — الإعدادات السحابية متاحة بعد إضافة
@@ -76,7 +79,7 @@ export default async function SettingsPage() {
   const [{ data: businesses }, activeId] = await Promise.all([
     supabase
       .from("businesses")
-      .select("id, name, business_type, currency, plan")
+      .select("id, name, business_type, currency, plan, phone, address")
       .order("created_at", { ascending: true }),
     getActiveBusinessId()
   ]);
@@ -106,6 +109,7 @@ export default async function SettingsPage() {
 
   const viewerRole = members.find((member) => member.userId === user.id)?.role;
   const activeBusiness = list.find((business) => business.id === effectiveActive);
+  const isOwner = viewerRole === "owner";
 
   const subscriptionResult = effectiveActive
     ? await getSubscriptionOverview(effectiveActive)
@@ -118,7 +122,7 @@ export default async function SettingsPage() {
   if (list.length === 0) {
     return (
       <div className="mx-auto max-w-3xl space-y-6">
-        <Header />
+        <Header isOwner={true} />
         <div className="card flex flex-col items-start gap-4">
           <div className="inline-flex rounded-xl bg-primary-50 p-3 text-primary">
             <Building2 className="h-6 w-6" aria-hidden />
@@ -137,24 +141,35 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Header />
+      <Header isOwner={isOwner} />
 
       <div className="card space-y-5">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary">
-            <Building2 className="h-5 w-5" aria-hidden />
-          </span>
-          <div>
-            <p className="text-sm font-bold">{activeBusiness?.name}</p>
-            <p className="text-xs text-muted">
-              {activeBusiness
-                ? BUSINESS_TYPE_LABELS[
-                    activeBusiness.business_type as keyof typeof BUSINESS_TYPE_LABELS
-                  ]
-                : ""}
-            </p>
+        {isOwner && activeBusiness ? (
+          <BusinessInfoForm
+            businessId={activeBusiness.id}
+            initial={{
+              name: activeBusiness.name,
+              phone: (activeBusiness as { phone?: string | null }).phone ?? "",
+              address: (activeBusiness as { address?: string | null }).address ?? ""
+            }}
+          />
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary">
+              <Building2 className="h-5 w-5" aria-hidden />
+            </span>
+            <div>
+              <p className="text-sm font-bold">{activeBusiness?.name}</p>
+              <p className="text-xs text-muted">
+                {activeBusiness
+                  ? BUSINESS_TYPE_LABELS[
+                      activeBusiness.business_type as keyof typeof BUSINESS_TYPE_LABELS
+                    ]
+                  : ""}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         <dl className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-3">
           <div>
@@ -194,71 +209,88 @@ export default async function SettingsPage() {
         />
       </div>
 
-      {overview && effectiveActive && (
+      {isOwner && overview && effectiveActive && (
         <SubscriptionCard businessId={effectiveActive} overview={overview} />
       )}
 
-      <div className="card space-y-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary">
-            <Users className="h-5 w-5" aria-hidden />
-          </span>
-          <p className="text-sm font-bold">المستخدمون والصلاحيات</p>
-        </div>
+      {isOwner ? (
+        <>
+          <div className="card space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 text-primary">
+                <Users className="h-5 w-5" aria-hidden />
+              </span>
+              <p className="text-sm font-bold">المستخدمون والصلاحيات</p>
+            </div>
 
-        {members.length > 0 ? (
-          <MembersManager
-            businessId={effectiveActive ?? ""}
-            members={members as ManagedMember[]}
-            viewerUserId={user.id}
-          />
-        ) : (
-          <p className="text-sm text-muted">
-            تعذر عرض الأعضاء — قد تكون صلاحياتك محدودة في هذا المشروع
-          </p>
-        )}
-
-        {viewerRole === "owner" && effectiveActive ? (
-          <>
-            <InviteMemberForm businessId={effectiveActive} />
-            {overview && (
-              <p className="text-xs text-muted">
-                الموظفون: {overview.activeMembers} من {overview.maxMembers}
-                {overview.inTrial
-                  ? " — خلال التجربة الحد 4 أعضاء"
-                  : overview.effectivePlan === "free"
-                    ? " — الخطة المجانية مالك فقط، اشترك لإضافة موظفين"
-                    : ""}
-              </p>
+            {members.length > 0 ? (
+              <MembersManager
+                businessId={effectiveActive ?? ""}
+                members={members as ManagedMember[]}
+                viewerUserId={user.id}
+              />
+            ) : (
+              <p className="text-sm text-muted">لا أعضاء بعد — ادعُ أول موظف من الأسفل</p>
             )}
-          </>
-        ) : (
-          <p className="flex items-center gap-2 text-xs text-muted">
-            <ShieldAlert className="h-4 w-4" aria-hidden />
-            إدارة المستخدمين والدعوات متاحة لمالك المشروع فقط
-          </p>
-        )}
-      </div>
+
+            {effectiveActive && (
+              <>
+                <InviteMemberForm businessId={effectiveActive} />
+                {overview && (
+                  <p className="text-xs text-muted">
+                    الموظفون: {overview.activeMembers} من {overview.maxMembers}
+                    {overview.inTrial
+                      ? " — خلال التجربة الحد 4 أعضاء"
+                      : overview.effectivePlan === "free"
+                        ? " — الخطة المجانية مالك فقط، اشترك لإضافة موظفين"
+                        : ""}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          <BackupExport />
+
+          {activeBusiness && effectiveActive && (
+            <DangerZone
+              businessId={effectiveActive}
+              businessName={activeBusiness.name}
+            />
+          )}
+        </>
+      ) : (
+        <div className="card flex items-center gap-3 text-sm text-muted">
+          <ShieldAlert className="h-5 w-5 shrink-0" aria-hidden />
+          أدوات إدارة المشروع (الاشتراك، الأعضاء، النسخ الاحتياطي) متاحة لمالك
+          المشروع فقط
+        </div>
+      )}
 
       <div className="card">
         <p className="mb-3 text-sm font-bold">الحساب</p>
         <p className="mb-4 text-xs text-muted" dir="ltr">
           {user.email}
         </p>
-        <SignOutButton />
+        <div className="flex flex-wrap items-center gap-2">
+          <SignOutButton />
+          <AppTourReplay />
+        </div>
       </div>
-
-      <BackupExport />
     </div>
   );
 }
 
-function Header() {
+function Header({ isOwner }: { isOwner: boolean }) {
   return (
     <div className="flex flex-col gap-1">
-      <h1 className="text-2xl font-bold">الإعدادات</h1>
+      <h1 className="text-2xl font-bold">
+        {isOwner ? "إدارة المشروع" : "الإعدادات"}
+      </h1>
       <p className="text-sm text-muted">
-        معلومات المشروع والمستخدمون والصلاحيات
+        {isOwner
+          ? "تحكم كامل في المشروع — المعلومات والأعضاء والاشتراك"
+          : "معلومات المشروع وحسابك"}
       </p>
     </div>
   );

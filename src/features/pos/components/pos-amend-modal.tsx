@@ -231,7 +231,15 @@ export function PosAmendModal({
             />
           </div>
           <div className="flex-1 space-y-2 overflow-y-auto">
-            {sales === undefined && <p className="p-4 text-sm text-muted">جارٍ التحميل...</p>}
+            {sales === undefined && (
+              <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted">
+                <span
+                  className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary"
+                  aria-hidden
+                />
+                جارٍ التحميل...
+              </div>
+            )}
             {sales !== undefined && visibleSales.length === 0 && (
               <p className="rounded-xl bg-muted-foreground/5 p-4 text-center text-sm text-muted">
                 لا فواتير قابلة للتعديل

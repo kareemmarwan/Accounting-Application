@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
+import { LoadingScreen } from "@/components/loading-screen";
 import {
   ArrowDownCircle,
   Banknote,
@@ -95,7 +96,7 @@ export function DashboardPageClient() {
   }, [period, refreshTick]);
 
   if (businesses === undefined || (loading && !data)) {
-    return <div className="card p-8 text-sm text-muted">جارٍ التحميل...</div>;
+    return <LoadingScreen />;
   }
 
   if (!business) {

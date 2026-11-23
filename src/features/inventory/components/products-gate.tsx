@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Boxes, Store } from "lucide-react";
 import { getDB } from "@/core/db/db";
+import { LoadingScreen } from "@/components/loading-screen";
 import { ProductsPageClient } from "@/features/inventory/components/products-page-client";
 
 export function ProductsGate({ canManage = true }: { canManage?: boolean }) {
@@ -25,7 +26,7 @@ export function ProductsGate({ canManage = true }: { canManage?: boolean }) {
   const business = sortedBusinesses[0] ?? null;
 
   if (businesses === undefined) {
-    return <div className="card p-8 text-sm text-muted">جارٍ التحميل...</div>;
+    return <LoadingScreen />;
   }
 
   if (!business) {

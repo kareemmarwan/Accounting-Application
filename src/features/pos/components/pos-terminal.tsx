@@ -443,7 +443,13 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
 
           <div className="card max-h-[60vh] overflow-y-auto p-3">
             {products === undefined ? (
-              <p className="p-4 text-sm text-muted">جارٍ التحميل...</p>
+              <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted">
+                <span
+                  className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary"
+                  aria-hidden
+                />
+                جارٍ تحميل المنتجات...
+              </div>
             ) : (products ?? []).length === 0 ? (
               emptyState
             ) : filteredProducts.length === 0 ? (

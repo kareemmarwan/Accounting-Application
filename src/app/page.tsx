@@ -14,6 +14,7 @@ import {
   WifiOff,
   X
 } from "lucide-react";
+import { LandingGate } from "@/features/landing/landing-gate";
 
 type Plan = {
   name: string;
@@ -186,6 +187,10 @@ function CheckIcon({ included }: { included: boolean }) {
 }
 
 export default function LandingPage() {
+  return <LandingGate>{landingContent()}</LandingGate>;
+}
+
+function landingContent() {
   return (
     <main className="flex-1">
       <header className="sticky top-0 z-40 border-b border-border bg-surface/90 backdrop-blur">

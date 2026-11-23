@@ -153,3 +153,113 @@ export async function inviteMember(
   revalidatePath("/settings");
   return { ok: true };
 }
+
+const updateBusinessSchema = z.object({
+  businessId: z.string().uuid("معرّف مشروع غير صالح"),
+  name: z.string().trim().min(2, "اسم المشروع مطلوب (حرفان على الأقل)").max(80, "الاسم طويل جداً"),
+  phone: z.string().trim().max(24, "رقم الهاتف طويل جداً").optional().default(""),
+  address: z.string().trim().max(200, "العنوان طويل جداً").optional().default("")
+});
+
+export type UpdateBusinessInput = z.infer<typeof updateBusinessSchema>;
+
+export type UpdateBusinessResult = { ok: boolean; error?: string };
+
+async function requireOwnerRole(
+  supabase: ReturnType<typeof getSupabaseServerClient>,
+  businessId: string,
+  userId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!supabase) return { ok: false, error: NOT_CONFIGURED_MESSAGE };
+  const { data: membership, error } = await supabase
+    .from("business_members")
+    .select("role")
+    .eq("business_id", businessId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) return { ok: false, error: "تعذر التحقق من صلاحياتك" };
+  if (!membership || membership.role !== "owner") {
+    return { ok: false, error: "أدوات إدارة المشروع متاحة لمالك المشروع فقط" };
+  }
+  return { ok: true };
+}
+
+export async function updateBusiness(
+  input: UpdateBusinessInput
+): Promise<UpdateBusinessResult> {
+  const parsed = updateBusinessSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+  }
+
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "انتهت الجلسة — سجّل الدخول من جديد" };
+
+  const supabase = getSupabaseServerClient();
+  const ownerCheck = await requireOwnerRole(supabase, parsed.data.businessId, user.id);
+  if (!ownerCheck.ok) return { ok: false, error: ownerCheck.error };
+
+  const { error: updateError } = await supabase!
+    .from("businesses")
+    .update({
+      name: parsed.data.name,
+      phone: parsed.data.phone || null,
+      address: parsed.data.address || null
+    })
+    .eq("id", parsed.data.businessId);
+
+  if (updateError) {
+    return { ok: false, error: "تعذر حفظ معلومات المشروع — أعد المحاولة" };
+  }
+
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+const archiveBusinessSchema = z.object({
+  businessId: z.string().uuid("معرّف مشروع غير صالح"),
+  confirmName: z.string().trim().min(1, "اكتب اسم المشروع للتأكيد")
+});
+
+export type ArchiveBusinessInput = z.infer<typeof archiveBusinessSchema>;
+
+export type ArchiveBusinessResult = { ok: boolean; error?: string };
+
+export async function archiveBusiness(
+  input: ArchiveBusinessInput
+): Promise<ArchiveBusinessResult> {
+  const parsed = archiveBusinessSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+  }
+
+  const user = await getSessionUser();
+  if (!user) return { ok: false, error: "انتهت الجلسة — سجّل الدخول من جديد" };
+
+  const supabase = getSupabaseServerClient();
+  const ownerCheck = await requireOwnerRole(supabase, parsed.data.businessId, user.id);
+  if (!ownerCheck.ok) return { ok: false, error: ownerCheck.error };
+
+  const { data: business } = await supabase!
+    .from("businesses")
+    .select("name")
+    .eq("id", parsed.data.businessId)
+    .maybeSingle();
+
+  if (!business || (business as { name: string }).name !== parsed.data.confirmName) {
+    return { ok: false, error: "الاسم المكتوب لا يطابق اسم المشروع" };
+  }
+
+  const { error: updateError } = await supabase!
+    .from("businesses")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", parsed.data.businessId);
+
+  if (updateError) {
+    return { ok: false, error: "تعذر إغلاق المشروع — أعد المحاولة" };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/settings");
+  return { ok: true };
+}

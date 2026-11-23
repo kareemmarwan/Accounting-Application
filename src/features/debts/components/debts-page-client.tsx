@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
+import { LoadingScreen } from "@/components/loading-screen";
 import {
   ChevronDown,
   ChevronUp,
@@ -113,7 +114,7 @@ export function DebtsPageClient() {
   }, [tabDebts]);
 
   if (businesses === undefined) {
-    return <div className="card p-8 text-sm text-muted">جارٍ التحميل...</div>;
+    return <LoadingScreen />;
   }
 
   if (!business) {

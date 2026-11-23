@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, Store } from "lucide-react";
 import { getDB } from "@/core/db/db";
+import { LoadingScreen } from "@/components/loading-screen";
 import { SaleForm } from "@/features/sales/components/sale-form";
 import { SalesList } from "@/features/sales/components/sales-list";
 
@@ -32,7 +33,7 @@ export function SalesPageClient() {
   const business = sortedBusinesses[0] ?? null;
 
   if (businesses === undefined) {
-    return <div className="card p-8 text-sm text-muted">جارٍ التحميل...</div>;
+    return <LoadingScreen />;
   }
 
   if (!business) {

@@ -12,6 +12,8 @@ const PROTECTED_PREFIXES = [
   "/dashboard",
   "/onboarding",
   "/sales",
+  "/pos",
+  "/products",
   "/purchases",
   "/debts",
   "/expenses",
@@ -75,16 +77,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  if (user && pathname === "/") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 
 export const config = {
   matcher: [
+    "/",
     "/login",
     "/register",
     "/dashboard/:path*",
     "/onboarding/:path*",
     "/sales/:path*",
+    "/pos/:path*",
+    "/products/:path*",
     "/purchases/:path*",
     "/debts/:path*",
     "/expenses/:path*",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ScanBarcode, Store } from "lucide-react";
 import { getDB } from "@/core/db/db";
+import { LoadingScreen } from "@/components/loading-screen";
 import { PosTerminal } from "@/features/pos/components/pos-terminal";
 
 export function PosPageClient() {
@@ -15,7 +16,7 @@ export function PosPageClient() {
   const business = sortedBusinesses[0] ?? null;
 
   if (businesses === undefined) {
-    return <div className="card p-8 text-sm text-muted">جارٍ التحميل...</div>;
+    return <LoadingScreen />;
   }
 
   if (!business) {

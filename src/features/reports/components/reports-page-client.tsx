@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Download, FileText, Printer, Store } from "lucide-react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
+import { LoadingScreen } from "@/components/loading-screen";
 import { getDB } from "@/core/db/db";
 import { defaultRange, buildReports, buildCsv, downloadCsv, REPORT_LABELS, type ReportKind, type ReportRange, type ReportsBundle } from "@/features/reports/services/reports-service";
 
@@ -63,7 +64,7 @@ export function ReportsPageClient() {
   }, [range]);
 
   if (businesses === undefined || (loading && !bundle)) {
-    return <div className="card p-8 text-sm text-muted">جارٍ التحميل...</div>;
+    return <LoadingScreen />;
   }
 
   if (!business) {

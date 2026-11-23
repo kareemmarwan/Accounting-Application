@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, Store } from "lucide-react";
+import { LoadingScreen } from "@/components/loading-screen";
 import { getDB } from "@/core/db/db";
 import { PurchaseForm } from "@/features/purchases/components/purchase-form";
 import { PurchasesList } from "@/features/purchases/components/purchases-list";
@@ -31,7 +32,7 @@ export function PurchasesPageClient() {
   const business = sortedBusinesses[0] ?? null;
 
   if (businesses === undefined) {
-    return <div className="card p-8 text-sm text-muted">جارٍ التحميل...</div>;
+    return <LoadingScreen />;
   }
 
   if (!business) {

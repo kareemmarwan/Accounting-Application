@@ -210,7 +210,15 @@ export function ProductsPageClient({
       )}
 
       <div className="space-y-2">
-        {products === undefined && <div className="card p-6 text-sm text-muted">جارٍ التحميل...</div>}
+        {products === undefined && (
+          <div className="card flex items-center justify-center gap-2 p-6 text-sm text-muted">
+            <span
+              className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-primary/20 border-t-primary"
+              aria-hidden
+            />
+            جارٍ التحميل...
+          </div>
+        )}
         {products !== undefined && visible.length === 0 && (
           <div className="card flex flex-col items-center gap-3 p-8 text-center">
             <PackageOpen className="h-8 w-8 text-muted" aria-hidden />

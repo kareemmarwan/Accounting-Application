@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/layout/app-shell";
+import { AppTour } from "@/features/onboarding/components/app-tour";
 import { getSupabaseServerClient } from "@/core/supabase/server";
 import { getSessionUser } from "@/features/auth/server/session";
 import { getActiveBusinessId } from "@/features/business/server/business-context";
@@ -95,8 +96,9 @@ export default async function AppLayout({
   }
 
   return (
-    <AppShell role={role} subscription={subscription} isAdmin={isAdmin}>
+    <AppShell role={role} isAdmin={isAdmin} subscription={subscription}>
       {children}
+      <AppTour />
     </AppShell>
   );
 }

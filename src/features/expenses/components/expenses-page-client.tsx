@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, Store } from "lucide-react";
+import { LoadingScreen } from "@/components/loading-screen";
 import { getDB } from "@/core/db/db";
 import { ExpenseForm } from "@/features/expenses/components/expense-form";
 import { ExpensesList } from "@/features/expenses/components/expenses-list";
@@ -28,7 +29,7 @@ export function ExpensesPageClient() {
   const business = sortedBusinesses[0] ?? null;
 
   if (businesses === undefined) {
-    return <div className="card p-8 text-sm text-muted">جارٍ التحميل...</div>;
+    return <LoadingScreen />;
   }
 
   if (!business) {

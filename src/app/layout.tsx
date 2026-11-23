@@ -6,6 +6,7 @@ import "@fontsource/cairo/700.css";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { ZoomGuard } from "@/components/zoom-guard";
+import { OfflineNavGuard } from "@/components/layout/offline-nav-guard";
 
 export const metadata: Metadata = {
   title: {
@@ -45,6 +46,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="font-sans min-h-screen flex flex-col">
         <ZoomGuard />
+        <OfflineNavGuard />
         {children}
         <ServiceWorkerRegister />
       </body>
