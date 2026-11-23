@@ -8,6 +8,7 @@ import {
   entityUpsertPayloadSchema,
   salePayloadSchema,
   saleAddItemsPayloadSchema,
+  saleReturnPayloadSchema,
   purchasePayloadSchema,
   expensePayloadSchema,
   debtPaymentPayloadSchema,
@@ -40,6 +41,8 @@ function validatePayload(
         return salePayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة البيع غير صالحة" };
       case "sale.add_items":
         return saleAddItemsPayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة إضافة أصناف غير صالحة" };
+      case "sale.return":
+        return saleReturnPayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة الإرجاع غير صالحة" };
       case "purchase.create":
         return purchasePayloadSchema.safeParse(payload).success ? { ok: true } : { ok: false, error: "حمولة الشراء غير صالحة" };
       case "expense.create":

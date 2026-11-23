@@ -159,6 +159,7 @@ export function mapSaleRow(row: Row): LocalSale | null {
     notes: str(row, "notes"),
     createdBy: str(row, "created_by"),
     postedAt: nullableIso(row, "posted_at"),
+    returnedAmountMinor: money(row, "returned_amount"),
     updatedAt: serverMeta.updatedAt,
     syncStatus: "synced" as SyncStatus,
     version: serverMeta.version,
@@ -361,6 +362,7 @@ export function mapSaleItemRow(row: Row): LocalSaleItem | null {
     quantityMilli: milliQuantity(row, "quantity"),
     unitPriceMinor: money(row, "unit_price"),
     totalMinor: money(row, "total"),
-    lineNote: str(row, "line_note")
+    lineNote: str(row, "line_note"),
+    returnedMilli: money(row, "returned")
   };
 }

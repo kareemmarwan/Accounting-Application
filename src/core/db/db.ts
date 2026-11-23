@@ -58,6 +58,7 @@ export interface LocalSale extends SyncFields {
   notes: string;
   createdBy: string;
   postedAt: string | null;
+  returnedAmountMinor?: number;
 }
 
 export interface LocalPurchase extends SyncFields {
@@ -181,6 +182,7 @@ export interface LocalAttachmentMeta extends SyncFields {
 export type OutboxOpType =
   | "sale.create"
   | "sale.add_items"
+  | "sale.return"
   | "purchase.create"
   | "expense.create"
   | "debt_payment.create"
@@ -242,6 +244,7 @@ export interface LocalSaleItem {
   unitPriceMinor: number;
   totalMinor: number;
   lineNote: string;
+  returnedMilli?: number;
 }
 
 export interface LocalInventoryMovement {

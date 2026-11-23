@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { BookOpen, CloudUpload, Search } from "lucide-react";
+import { BookOpen, CloudUpload, Search, Undo2 } from "lucide-react";
 import { getDB, type LocalSale } from "@/core/db/db";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { PAYMENT_METHOD_LABELS } from "@/core/validation/sale";
+import { SaleReturnModal } from "@/features/sales/components/sale-return-modal";
 
 type StatusFilter = "all" | "cash" | "mixed" | "credit";
 type MethodFilter = "all" | LocalSale["paymentMethod"];
@@ -52,6 +53,8 @@ export function SalesList({ refreshKey }: { refreshKey: number }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [methodFilter, setMethodFilter] = useState<MethodFilter>("all");
+  const [returnSaleId, setReturnSaleId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const sales = useLiveQuery(
     () => getDB().sales.orderBy("occurredAt").reverse().toArray(),
@@ -139,6 +142,16 @@ export function SalesList({ refreshKey }: { refreshKey: number }) {
         </select>
       </div>
 
+      {successMessage && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-xl border border-primary-200 bg-primary-50 p-3 text-xs font-medium text-primary-800"
+        >
+          <Undo2 className="h-4 w-4" aria-hidden />
+          {successMessage}
+        </div>
+      )}
+
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-10 text-center">
           <div className="inline-flex rounded-xl bg-primary-50 p-3 text-primary">
@@ -164,6 +177,7 @@ export function SalesList({ refreshKey }: { refreshKey: number }) {
                 <th className="py-2 text-start font-medium">المتبقي</th>
                 <th className="py-2 text-start font-medium">الحالة</th>
                 <th className="py-2 text-start font-medium">المزامنة</th>
+                <th className="py-2 text-start font-medium">إجراء</th>
               </tr>
             </thead>
             <tbody>
@@ -216,12 +230,36 @@ export function SalesList({ refreshKey }: { refreshKey: number }) {
                         {badge.label}
                       </span>
                     </td>
+                    <td className="py-2.5">
+                      {sale.status !== "void" && (
+                        <button
+                          type="button"
+                          onClick={() => setReturnSaleId(sale.id)}
+                          className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted transition-colors hover:border-primary hover:text-primary"
+                          aria-label={`إرجاع من فاتورة ${sale.saleNumber}`}
+                        >
+                          <Undo2 className="h-3 w-3" aria-hidden />
+                          إرجاع
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+      )}
+
+      {returnSaleId && (
+        <SaleReturnModal
+          saleId={returnSaleId}
+          onClose={() => setReturnSaleId(null)}
+          onReturned={(message) => {
+            setReturnSaleId(null);
+            setSuccessMessage(message);
+          }}
+        />
       )}
     </div>
   );

@@ -24,6 +24,7 @@ export type SyncEntityType = (typeof SYNC_ENTITY_TYPES)[number];
 export const SYNC_OP_TYPES = [
   "sale.create",
   "sale.add_items",
+  "sale.return",
   "purchase.create",
   "expense.create",
   "debt_payment.create",
@@ -227,6 +228,26 @@ export const saleAddItemsPayloadSchema = z
   });
 
 export type SaleAddItemsPayload = z.infer<typeof saleAddItemsPayloadSchema>;
+
+export const saleReturnPayloadSchema = z.object({
+  clientOpId: uuid,
+  createdAt: iso,
+  opType: z.literal("sale.return").optional(),
+  saleId: uuid,
+  items: z
+    .array(
+      z.object({
+        saleItemId: uuid,
+        quantityMilli: milli
+      })
+    )
+    .min(1, "حدد أصنافاً للإرجاع")
+    .max(500),
+  reason: z.string().trim().min(3, "سبب الإرجاع مطلوب (3 أحرف على الأقل)").max(200),
+  refundAccountId: nullableUuid
+});
+
+export type SaleReturnPayload = z.infer<typeof saleReturnPayloadSchema>;
 
 export const purchaseItemPayloadSchema = z.object({
   id: uuid,
