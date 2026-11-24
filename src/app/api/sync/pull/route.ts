@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const pullSchema = z.object({
-  businessId: z.string().uuid(),
+  businessId: z.string().uuid().nullable().optional(),
   deviceId: z.string().min(8).max(64),
   since: z.string().nullable()
 });
@@ -103,24 +103,26 @@ export async function POST(request: Request) {
     }
   }
 
-  for (const table of PULL_TABLES) {
-    let query = supabase
-      .from(table)
-      .select("*")
-      .eq("business_id", businessId)
-      .gt("updated_at", sinceEpoch)
-      .order("updated_at", { ascending: true })
-      .limit(PAGE_SIZE);
+  if (businessId) {
+    for (const table of PULL_TABLES) {
+      let query = supabase
+        .from(table)
+        .select("*")
+        .eq("business_id", businessId)
+        .gt("updated_at", sinceEpoch)
+        .order("updated_at", { ascending: true })
+        .limit(PAGE_SIZE);
 
-    const { data, error } = await query;
-    if (error) {
-      return NextResponse.json(
-        { ok: false, error: `تعذر سحب ${table}: ${error.message}` },
-        { status: 500 }
-      );
-    }
-    if (data && data.length > 0) {
-      deltas.push({ table, rows: data });
+      const { data, error } = await query;
+      if (error) {
+        return NextResponse.json(
+          { ok: false, error: `تعذر سحب ${table}: ${error.message}` },
+          { status: 500 }
+        );
+      }
+      if (data && data.length > 0) {
+        deltas.push({ table, rows: data });
+      }
     }
   }
 

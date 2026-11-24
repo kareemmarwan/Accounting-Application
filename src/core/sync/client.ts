@@ -320,7 +320,11 @@ function outboxIsDue(item: OutboxItem): boolean {
   return Date.now() - Date.parse(item.createdAt) >= backoffDelayMs(item.attempts);
 }
 
-async function pushOutbox(businessId: string, deviceId: string): Promise<void> {
+async function pushOutbox(
+  businessId: string | null,
+  deviceId: string
+): Promise<void> {
+  if (!businessId) return;
   const db = getDB();
   const all = await db.outbox
     .where("businessId")
@@ -429,7 +433,7 @@ async function pushOutbox(businessId: string, deviceId: string): Promise<void> {
 }
 
 async function pullDeltas(
-  businessId: string,
+  businessId: string | null,
   deviceId: string
 ): Promise<void> {
   const config = getSupabaseConfig();
@@ -615,7 +619,7 @@ async function applyDelta(table: string, rows: Array<Record<string, unknown>>): 
   }
 }
 
-export async function syncBusiness(businessId: string): Promise<void> {
+export async function syncBusiness(businessId: string | null): Promise<void> {
   if (syncing) return;
   const configured = Boolean(getSupabaseConfig());
   if (!configured) {
@@ -626,7 +630,9 @@ export async function syncBusiness(businessId: string): Promise<void> {
   syncing = true;
   setState({ status: "syncing", configured: true, lastError: null });
   try {
-    const deviceId = await getOrCreateDeviceId(businessId);
+    const deviceId = await getOrCreateDeviceId(
+      businessId ?? BOOTSTRAP_BUSINESS_KEY
+    );
     await pushOutbox(businessId, deviceId);
     await pullDeltas(businessId, deviceId);
     await refreshCounts();

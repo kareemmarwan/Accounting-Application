@@ -287,6 +287,12 @@ export function AppTour({
         return;
       }
       abortWait();
+      const previousDriver = driverRef.current;
+      driverRef.current = null;
+      if (previousDriver?.isActive()) {
+        navigatingRef.current = true;
+        previousDriver.destroy();
+      }
       const controller = new AbortController();
       abortRef.current = controller;
 
@@ -320,7 +326,8 @@ export function AppTour({
             description: stepDef.description,
             side: stepDef.side ?? "bottom",
             align: stepDef.align ?? "center",
-            progressText: `${index + 1} من ${currentPlan.length}`
+            progressText: `${index + 1} من ${currentPlan.length}`,
+            doneBtnText: index === currentPlan.length - 1 ? "يلا نبدأ" : "التالي"
           }
         });
       }
@@ -329,7 +336,12 @@ export function AppTour({
         ...BASE_CONFIG,
         steps,
         onNextClick: (_element, _step, opts) => {
-          const nextGlobal = globalIndex + (opts.index ?? 0) + 1;
+          const activeIndex = opts.index ?? 0;
+          if (globalIndex + activeIndex + 1 < segmentEnd) {
+            driverObj.moveNext();
+            return;
+          }
+          const nextGlobal = globalIndex + activeIndex + 1;
           if (nextGlobal >= currentPlan.length) {
             finishTour();
             return;
@@ -337,12 +349,22 @@ export function AppTour({
           goToRef.current(nextGlobal);
         },
         onPrevClick: (_element, _step, opts) => {
-          const prevGlobal = globalIndex + (opts.index ?? 0) - 1;
+          const activeIndex = opts.index ?? 0;
+          if (activeIndex > 0) {
+            driverObj.movePrevious();
+            return;
+          }
+          const prevGlobal = globalIndex - 1;
           if (prevGlobal < 0) return;
           goToRef.current(prevGlobal);
         },
-        onDoneClick: () => {
-          finishTour();
+        onDoneClick: (_element, _step, opts) => {
+          const nextGlobal = globalIndex + (opts.index ?? 0) + 1;
+          if (nextGlobal >= currentPlan.length) {
+            finishTour();
+            return;
+          }
+          goToRef.current(nextGlobal);
         },
         onCloseClick: () => {
           finishTour();
