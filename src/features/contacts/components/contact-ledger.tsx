@@ -87,7 +87,7 @@ export function ContactLedger({ party, type, businessId, onClose }: ContactLedge
   }
 
   return (
-    <div className="card space-y-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-lg font-bold">دفتر دين — {party.name}</p>

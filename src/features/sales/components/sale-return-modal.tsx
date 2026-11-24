@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { AlertCircle, Loader2, Undo2, X } from "lucide-react";
 import { getDB } from "@/core/db/db";
+import { Modal } from "@/components/ui/modal";
 import { formatCurrency } from "@/lib/format";
 import { returnSaleItems } from "@/features/sales/services/sale-return-service";
 
@@ -117,12 +118,13 @@ export function SaleReturnModal({
   if (!sale) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      role="dialog"
-      aria-modal="true"
+    <Modal
+      open
+      onClose={onClose}
+      label="إرجاع من فاتورة"
+      size="md"
+      className="space-y-3"
     >
-      <div className="card w-full max-w-lg space-y-3">
         <div className="flex items-center justify-between">
           <p className="flex items-center gap-2 text-sm font-bold">
             <Undo2 className="h-5 w-5 text-primary" aria-hidden />
@@ -260,7 +262,6 @@ export function SaleReturnModal({
             </button>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

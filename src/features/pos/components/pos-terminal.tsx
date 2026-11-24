@@ -21,6 +21,7 @@ import {
   X
 } from "lucide-react";
 import { getDB, type LocalProduct, type LocalSale } from "@/core/db/db";
+import { Modal } from "@/components/ui/modal";
 import { fromMinor, toMinor } from "@/core/accounting/money";
 import { formatCurrency } from "@/lib/format";
 import { fromMilli, parseQuantityToMilli, parseScaleBarcode, PRODUCT_UNIT_LABELS, UNIT_MILLI_LABELS } from "@/core/validation/product";
@@ -734,8 +735,13 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
       )}
 
       {weightTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal>
-          <div className="card w-full max-w-sm space-y-3">
+        <Modal
+          open
+          onClose={() => setWeightTarget(null)}
+          label="إدخال الوزن"
+          size="sm"
+          className="space-y-3"
+        >
             <div className="flex items-center justify-between">
               <p className="text-sm font-bold">وزن: {weightTarget.name}</p>
               <button type="button" onClick={() => setWeightTarget(null)} aria-label="إغلاق">
@@ -787,13 +793,17 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
             >
               إضافة إلى الفاتورة
             </button>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {noteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal>
-          <div className="card w-full max-w-sm space-y-3">
+        <Modal
+          open
+          onClose={() => setNoteTarget(null)}
+          label="ملاحظة السطر"
+          size="sm"
+          className="space-y-3"
+        >
             <div className="flex items-center justify-between">
               <p className="text-sm font-bold">{noteTarget.name}</p>
               <button type="button" onClick={() => setNoteTarget(null)} aria-label="إغلاق">
@@ -819,13 +829,17 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
             >
               إضافة إلى الفاتورة
             </button>
-          </div>
-        </div>
+        </Modal>
       )}
 
       {receipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal>
-          <div className="card w-full max-w-md space-y-3 print-area">
+        <Modal
+          open
+          onClose={() => setReceipt(null)}
+          label="فاتورة البيع"
+          size="md"
+          className="space-y-3 print-area"
+        >
             <div className="flex items-center justify-between">
               <p className="flex items-center gap-2 text-sm font-bold text-primary">
                 <CheckCircle2 className="h-5 w-5" aria-hidden />
@@ -850,8 +864,7 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
                 فاتورة جديدة
               </button>
             </div>
-          </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

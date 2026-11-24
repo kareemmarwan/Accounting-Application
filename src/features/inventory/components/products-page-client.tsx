@@ -17,6 +17,7 @@ import {
   Trash2
 } from "lucide-react";
 import { getDB, type LocalProduct } from "@/core/db/db";
+import { Modal } from "@/components/ui/modal";
 import { formatCurrency } from "@/lib/format";
 import { fromMinor } from "@/core/accounting/money";
 import {
@@ -311,8 +312,12 @@ export function ProductsPageClient({
       </div>
 
       {formOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-4">
-          <div className="card w-full max-w-2xl">
+        <Modal
+          open
+          onClose={() => setFormOpen(false)}
+          label={editing ? "تعديل منتج" : "منتج جديد"}
+          size="lg"
+        >
             <div className="mb-3 flex items-center justify-between">
               <p className="text-base font-bold">
                 {editing ? `تعديل: ${editing.name}` : "منتج جديد"}
@@ -337,8 +342,7 @@ export function ProductsPageClient({
                 setPrefillBarcode(null);
               }}
             />
-          </div>
-        </div>
+        </Modal>
       )}
 
       {adjustTarget && (
@@ -372,8 +376,7 @@ function AdjustModal({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="card w-full max-w-sm space-y-3">
+    <Modal open onClose={onClose} label="حركة مخزون" size="sm" className="space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold">حركة مخزون: {product.name}</p>
           <button type="button" onClick={onClose} aria-label="إغلاق">
@@ -478,7 +481,6 @@ function AdjustModal({
         <p className="num text-center text-[10px] text-muted" dir="ltr">
           {formatCurrency(product.salePriceMinor, currency)} — سعر البيع الحالي
         </p>
-      </div>
-    </div>
+    </Modal>
   );
 }

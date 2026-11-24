@@ -15,6 +15,7 @@ import {
   ChevronLeft
 } from "lucide-react";
 import { getDB, type LocalParty } from "@/core/db/db";
+import { Modal } from "@/components/ui/modal";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import {
   CONTACT_TYPE_LABELS,
@@ -356,16 +357,19 @@ export function ContactsPageClient() {
       )}
 
       {ledgerParty && business && (
-        <div className="fixed inset-0 z-40 overflow-y-auto bg-background/70 p-4 backdrop-blur-sm">
-          <div className="mx-auto max-w-3xl py-6">
-            <ContactLedger
-              party={ledgerParty}
-              type={ledgerType}
-              businessId={business.id}
-              onClose={() => setLedgerParty(null)}
-            />
-          </div>
-        </div>
+        <Modal
+          open
+          onClose={() => setLedgerParty(null)}
+          label="دفتر الدين"
+          size="xl"
+        >
+          <ContactLedger
+            party={ledgerParty}
+            type={ledgerType}
+            businessId={business.id}
+            onClose={() => setLedgerParty(null)}
+          />
+        </Modal>
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { Modal } from "@/components/ui/modal";
 import {
   AlertTriangle,
   FilePenLine,
@@ -208,8 +209,13 @@ export function PosAmendModal({
 
   if (!selected) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal>
-        <div className="card flex max-h-[80vh] w-full max-w-xl flex-col gap-3">
+      <Modal
+        open
+        onClose={onClose}
+        label="تعديل فاتورة — اختيار الفاتورة"
+        size="lg"
+        className="space-y-3"
+      >
           <div className="flex items-center justify-between">
             <p className="flex items-center gap-2 text-base font-bold">
               <FilePenLine className="h-5 w-5 text-primary" aria-hidden />
@@ -230,7 +236,7 @@ export function PosAmendModal({
               aria-label="بحث في الفواتير"
             />
           </div>
-          <div className="flex-1 space-y-2 overflow-y-auto">
+          <div className="space-y-2">
             {sales === undefined && (
               <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted">
                 <span
@@ -269,14 +275,18 @@ export function PosAmendModal({
               </button>
             ))}
           </div>
-        </div>
-      </div>
+      </Modal>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal>
-      <div className="card flex max-h-[90vh] w-full max-w-3xl flex-col gap-3 overflow-y-auto">
+    <Modal
+      open
+      onClose={onClose}
+      label="تعديل فاتورة — إضافة أصناف"
+      size="xl"
+      className="space-y-3"
+    >
         <div className="flex items-center justify-between">
           <p className="flex items-center gap-2 text-base font-bold">
             <ReceiptText className="h-5 w-5 text-primary" aria-hidden />
@@ -482,7 +492,6 @@ export function PosAmendModal({
             الأصناف تُضاف بسطر مستقل وتُخصم من المخزون — القيد الأصلي لا يُمس ويُنشأ قيد إضافة متوازن
           </p>
         </div>
-      </div>
-    </div>
+      </Modal>
   );
 }

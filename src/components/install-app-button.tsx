@@ -10,6 +10,7 @@ import {
   X,
   CheckCircle2
 } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -107,13 +108,12 @@ export function InstallAppButton({
       </button>
 
       {modalOpen && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/60 p-4 backdrop-blur-sm"
-          role="dialog"
-          aria-modal="true"
-          aria-label="طريقة تثبيت التطبيق"
+        <Modal
+          open
+          onClose={() => setModalOpen(false)}
+          label="طريقة تثبيت التطبيق"
+          size="sm"
         >
-          <div className="w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <p className="flex items-center gap-2 text-base font-bold">
                 <Smartphone className="h-5 w-5 text-primary" aria-hidden />
@@ -196,8 +196,7 @@ export function InstallAppButton({
                 جرب التثبيت المباشر
               </button>
             )}
-          </div>
-        </div>
+        </Modal>
       )}
     </>
   );
