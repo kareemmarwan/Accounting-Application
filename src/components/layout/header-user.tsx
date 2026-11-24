@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/core/supabase/client";
 import { signOut } from "@/features/auth/services/auth-service";
-import { useRouter } from "next/navigation";
 
 export function HeaderUser() {
-  const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const configured = isSupabaseConfigured();
@@ -16,9 +14,12 @@ export function HeaderUser() {
     if (!configured) return;
     const client = getSupabaseBrowserClient();
     if (!client) return;
-    client.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null);
-    });
+    client.auth
+      .getSession()
+      .then(({ data }) => {
+        setEmail(data.session?.user?.email ?? null);
+      })
+      .catch(() => undefined);
   }, [configured]);
 
   if (!configured || !email) return null;
@@ -27,10 +28,8 @@ export function HeaderUser() {
     setBusy(true);
     try {
       await signOut();
-      router.replace("/login");
-      router.refresh();
-    } catch {
-      setBusy(false);
+    } finally {
+      window.location.assign("/login");
     }
   }
 

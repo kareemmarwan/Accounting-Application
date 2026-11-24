@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/core/supabase/client";
 import { LoadingScreen } from "@/components/loading-screen";
 
 export function LandingGate({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const [state, setState] = useState<"checking" | "landing">("checking");
 
   useEffect(() => {
@@ -20,7 +18,10 @@ export function LandingGate({ children }: { children: React.ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession();
         if (data.session) {
-          router.replace("/dashboard");
+          navigator.serviceWorker?.controller?.postMessage({
+            type: "PRECACHE_APP_SHELL"
+          });
+          window.location.replace("/dashboard");
           return;
         }
       } catch {
@@ -31,7 +32,7 @@ export function LandingGate({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, []);
 
   if (state === "checking") {
     return <LoadingScreen fullScreen />;

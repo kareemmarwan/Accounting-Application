@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut, Loader2 } from "lucide-react";
 import { isSupabaseConfigured } from "@/core/supabase/client";
 import { signOut } from "@/features/auth/services/auth-service";
@@ -13,7 +12,6 @@ export function SignOutButton({
   className?: string;
   showLabel?: boolean;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const configured = isSupabaseConfigured();
 
@@ -23,10 +21,8 @@ export function SignOutButton({
     setBusy(true);
     try {
       await signOut();
-      router.replace("/login");
-      router.refresh();
-    } catch {
-      setBusy(false);
+    } finally {
+      window.location.assign("/login");
     }
   }
 

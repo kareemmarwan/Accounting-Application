@@ -1,11 +1,35 @@
 import { createServerClient, type CookieOptionsWithName } from "@supabase/ssr";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseConfig } from "@/core/supabase/env";
+import { withTimeout } from "@/core/supabase/safe-query";
 
 interface CookieToSet {
   name: string;
   value: string;
   options?: CookieOptionsWithName;
+}
+
+async function resolveUser(supabase: SupabaseClient): Promise<User | null> {
+  try {
+    const user = await withTimeout(
+      supabase.auth.getUser().then(({ data }) => data.user ?? null),
+      null
+    );
+    if (user) return user;
+  } catch {
+    void 0;
+  }
+
+  try {
+    const session = await withTimeout(
+      supabase.auth.getSession().then(({ data }) => data.session ?? null),
+      null
+    );
+    return session?.user ?? null;
+  } catch {
+    return null;
+  }
 }
 
 const PROTECTED_PREFIXES = [
@@ -57,9 +81,7 @@ export async function middleware(request: NextRequest) {
     }
   });
 
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const user = await resolveUser(supabase);
 
   const { pathname } = request.nextUrl;
 

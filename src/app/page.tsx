@@ -15,6 +15,7 @@ import {
   X
 } from "lucide-react";
 import { LandingGate } from "@/features/landing/landing-gate";
+import { InstallAppButton } from "@/components/install-app-button";
 
 type Plan = {
   name: string;
@@ -209,6 +210,7 @@ function landingContent() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <InstallAppButton className="btn-outline !px-2.5 !py-2" showLabel={false} />
             <Link href="/login" className="hidden text-sm font-medium text-muted transition-colors hover:text-foreground sm:block">
               تسجيل الدخول
             </Link>

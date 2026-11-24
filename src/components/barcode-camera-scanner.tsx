@@ -212,7 +212,7 @@ export function BarcodeCameraScanner({
           }
         );
         const controls = await reader.decodeFromStream(
-          stream,
+          stream.clone(),
           video,
           (result) => {
             noteFrame(result?.getText() ?? null);

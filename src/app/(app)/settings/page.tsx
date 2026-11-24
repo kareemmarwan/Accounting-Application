@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Building2, ShieldAlert, Users } from "lucide-react";
 import { getSupabaseServerClient } from "@/core/supabase/server";
+import { safeQuery } from "@/core/supabase/safe-query";
 import { getSessionUser } from "@/features/auth/server/session";
 import { getActiveBusinessId } from "@/features/business/server/business-context";
 import { SignOutButton } from "@/features/settings/components/sign-out-button";
@@ -11,6 +12,8 @@ import { BackupExport } from "@/features/settings/components/backup-export";
 import { BusinessInfoForm } from "@/features/settings/components/business-info-form";
 import { DangerZone } from "@/features/settings/components/danger-zone";
 import { BusinessSwitcher } from "@/components/layout/business-switcher";
+import { InstallAppButton } from "@/components/install-app-button";
+import { DeviceStorageCard } from "@/features/settings/components/device-storage-card";
 import { AppTourReplay } from "@/features/onboarding/components/app-tour-replay";
 import { BUSINESS_TYPE_LABELS } from "@/core/validation/onboarding";
 import { getSubscriptionOverview } from "@/features/subscription/server/actions";
@@ -76,13 +79,18 @@ export default async function SettingsPage() {
     );
   }
 
-  const [{ data: businesses }, activeId] = await Promise.all([
-    supabase
-      .from("businesses")
-      .select("id, name, business_type, currency, plan, phone, address")
-      .order("created_at", { ascending: true }),
+  const [businessesRes, activeId] = await Promise.all([
+    safeQuery(
+      () =>
+        supabase
+          .from("businesses")
+          .select("id, name, business_type, currency, plan, phone, address")
+          .order("created_at", { ascending: true }),
+      null
+    ),
     getActiveBusinessId()
   ]);
+  const businesses = businessesRes?.data ?? null;
 
   const list = businesses ?? [];
   const effectiveActive =
@@ -92,12 +100,16 @@ export default async function SettingsPage() {
 
   let members: MemberRow[] = [];
   if (effectiveActive) {
-    const { data: memberRows } = await supabase
-      .from("business_members")
-      .select("id, role, status, user_id, profile:profiles(full_name)")
-      .eq("business_id", effectiveActive)
-      .order("created_at", { ascending: true });
-    const rows = (memberRows ?? []) as unknown as MemberRaw[];
+    const membersRes = await safeQuery(
+      () =>
+        supabase
+          .from("business_members")
+          .select("id, role, status, user_id, profile:profiles(full_name)")
+          .eq("business_id", effectiveActive)
+          .order("created_at", { ascending: true }),
+      null
+    );
+    const rows = ((membersRes?.data ?? []) as unknown as MemberRaw[]);
     members = rows.map((row) => ({
       id: row.id,
       userId: row.user_id,
@@ -112,7 +124,7 @@ export default async function SettingsPage() {
   const isOwner = viewerRole === "owner";
 
   const subscriptionResult = effectiveActive
-    ? await getSubscriptionOverview(effectiveActive)
+    ? await safeQuery(() => getSubscriptionOverview(effectiveActive), null)
     : null;
   const overview =
     subscriptionResult && subscriptionResult.ok
@@ -267,6 +279,8 @@ export default async function SettingsPage() {
         </div>
       )}
 
+      <DeviceStorageCard />
+
       <div className="card">
         <p className="mb-3 text-sm font-bold">الحساب</p>
         <p className="mb-4 text-xs text-muted" dir="ltr">
@@ -276,6 +290,16 @@ export default async function SettingsPage() {
           <SignOutButton />
           <AppTourReplay />
         </div>
+      </div>
+
+      <div className="card flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold">التطبيق على هاتفك</p>
+          <p className="text-xs text-muted">
+            ثبّت المساعد المالي كتطبيق مستقل — شاشة كاملة ويعمل دون إنترنت
+          </p>
+        </div>
+        <InstallAppButton />
       </div>
     </div>
   );

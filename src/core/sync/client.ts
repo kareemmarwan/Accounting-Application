@@ -8,6 +8,7 @@ import {
   saveSyncMeta
 } from "@/core/sync/device";
 import {
+  mapBusinessRow,
   mapCustomerRow,
   mapDebtPaymentRow,
   mapDebtRow,
@@ -473,6 +474,16 @@ async function applyDelta(table: string, rows: Array<Record<string, unknown>>): 
   const db = getDB();
 
   switch (table) {
+    case "businesses": {
+      for (const row of rows) {
+        const mapped = mapBusinessRow(row);
+        if (!mapped) continue;
+        const local = await db.businesses.get(mapped.id);
+        if (local && local.version >= mapped.version) continue;
+        await db.businesses.put(mapped);
+      }
+      break;
+    }
     case "customers": {
       for (const row of rows) {
         const mapped = mapCustomerRow(row);
@@ -662,6 +673,7 @@ export function startSyncHeartbeat(getBusinessId: () => string | null): () => vo
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     void syncBusiness(businessId);
   };
+  tick();
   heartbeatTimer = setInterval(tick, 60_000);
   if (typeof window !== "undefined") {
     window.addEventListener("online", tick);

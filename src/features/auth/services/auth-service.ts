@@ -13,6 +13,16 @@ function getClient(): SupabaseClient {
   return client;
 }
 
+function clearAuthCookies(): void {
+  for (const pair of document.cookie.split(";")) {
+    const name = pair.split("=")[0]?.trim();
+    if (name && name.startsWith("sb-")) {
+      document.cookie = `${name}=; Path=/; Max-Age=0`;
+      document.cookie = `${name}=; Path=/; Max-Age=0; SameSite=Lax`;
+    }
+  }
+}
+
 async function hasAnyBusiness(client: SupabaseClient): Promise<boolean> {
   const { data, error } = await client.from("businesses").select("id").limit(1);
   if (error) return false;
@@ -57,5 +67,9 @@ export async function signUp(input: RegisterInput): Promise<AuthOutcome> {
 
 export async function signOut(): Promise<void> {
   const client = getClient();
-  await client.auth.signOut();
+  try {
+    await client.auth.signOut();
+  } catch {
+    clearAuthCookies();
+  }
 }

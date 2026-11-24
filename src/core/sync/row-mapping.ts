@@ -1,5 +1,6 @@
 import { toMinor } from "@/core/accounting/money";
 import type {
+  LocalBusiness,
   LocalDebt,
   LocalDebtPayment,
   LocalExpense,
@@ -364,5 +365,22 @@ export function mapSaleItemRow(row: Row): LocalSaleItem | null {
     totalMinor: money(row, "total"),
     lineNote: str(row, "line_note"),
     returnedMilli: money(row, "returned")
+  };
+}
+
+export function mapBusinessRow(row: Row): LocalBusiness | null {
+  const id = str(row, "id");
+  if (!id) return null;
+  return {
+    id,
+    name: str(row, "name"),
+    businessType: str(row, "business_type"),
+    ownerId: str(row, "owner_id"),
+    currency: str(row, "currency") || "ILS",
+    phone: nullableStr(row, "phone"),
+    plan: str(row, "plan") || "free",
+    createdAt: iso(row, "created_at"),
+    updatedAt: iso(row, "updated_at"),
+    version: typeof row.version === "number" ? row.version : 1
   };
 }

@@ -25,9 +25,15 @@ export function BusinessSwitcher({
   async function switchTo(businessId: string) {
     if (businessId === activeId) return;
     setSelected(businessId);
-    const result = await setActiveBusiness(businessId);
+    let result: { ok: boolean; error?: string } | null = null;
+    try {
+      result = await setActiveBusiness(businessId);
+    } catch {
+      result = { ok: false, error: "تعذر الاتصال بالخادم — تعمل حالياً دون إنترنت" };
+    }
     if (!result.ok) {
       setError(result.error ?? "تعذر تبديل المشروع");
+      setSelected(activeId ?? businesses[0]?.id ?? "");
       return;
     }
     startTransition(() => {
