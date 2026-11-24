@@ -26,7 +26,8 @@ export function PosPageClient() {
           <ScanBarcode className="h-6 w-6" aria-hidden />
         </div>
         <p className="text-sm leading-relaxed text-muted">
-          لا يوجد مشروع نشط على هذا الجهاز — أكمل إعداد المشروع لتفعيل الكاشير.
+          لا يوجد مشروع نشط على هذا الجهاز — أكمل إعداد المشروع لتفعيل الكاشير،
+          أو انتظر لحظات عند توفر الإنترنت ليُستعاد مشروعك السابق تلقائياً.
         </p>
         <Link href="/onboarding" className="btn-primary">
           إعداد المشروع

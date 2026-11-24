@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { CloudOff, RefreshCw, TriangleAlert, Wifi, WifiOff } from "lucide-react";
 import { useSyncEngine } from "@/core/sync/use-sync-engine";
 import { getDB } from "@/core/db/db";
@@ -10,7 +11,13 @@ type ConnectionState = "unknown" | "online" | "offline";
 
 export function ConnectionStatus() {
   const [state, setState] = useState<ConnectionState>("unknown");
-  const [businessId, setBusinessId] = useState<string | null>(null);
+  const businesses = useLiveQuery(() => getDB().businesses.toArray(), []);
+  const businessId = useMemo(() => {
+    const sorted = [...(businesses ?? [])].sort(
+      (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)
+    );
+    return sorted[0]?.id ?? null;
+  }, [businesses]);
   const sync = useSyncEngine(businessId);
 
   useEffect(() => {
@@ -20,21 +27,10 @@ export function ConnectionStatus() {
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", goOffline);
 
-    let active = true;
-    const load = async () => {
-      const businesses = await getDB().businesses.toArray();
-      if (!active) return;
-      const sorted = [...businesses].sort(
-        (a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)
-      );
-      setBusinessId(sorted[0]?.id ?? null);
-    };
-    void load();
     initSyncEngine(() => businessId);
     const stopHeartbeat = startSyncHeartbeat(() => businessId);
 
     return () => {
-      active = false;
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", goOffline);
       stopHeartbeat();
@@ -45,7 +41,6 @@ export function ConnectionStatus() {
     return (
       <span
         className="inline-flex h-8 w-20 items-center justify-center rounded-full border border-border bg-muted-foreground/5 text-xs text-muted"
-        data-tour="connection-status"
         aria-hidden
       >
         ...
@@ -58,7 +53,7 @@ export function ConnectionStatus() {
   const syncingNow = sync.status === "syncing" && online;
 
   return (
-    <div className="flex items-center gap-1.5" data-tour="connection-status">
+    <div className="flex items-center gap-1.5">
       {showPending && (
         <button
           type="button"

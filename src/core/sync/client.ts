@@ -36,6 +36,7 @@ export interface SyncEngineState {
 }
 
 const listeners = new Set<() => void>();
+const BOOTSTRAP_BUSINESS_KEY = "__bootstrap__";
 let state: SyncEngineState = {
   status: "idle",
   pendingOps: 0,
@@ -439,7 +440,7 @@ async function pullDeltas(
   const config = getSupabaseConfig();
   if (!config) return;
 
-  const syncMeta = await loadSyncMeta(businessId);
+  const syncMeta = businessId ? await loadSyncMeta(businessId) : null;
   const since = syncMeta?.lastPulledAt ?? null;
 
   let response: Response;
@@ -671,11 +672,12 @@ export function initSyncEngine(getBusinessId: () => string | null): void {
   });
 }
 
-export function startSyncHeartbeat(getBusinessId: () => string | null): () => void {
+export function startSyncHeartbeat(
+  getBusinessId: () => string | null
+): () => void {
   if (heartbeatTimer) return () => void 0;
   const tick = () => {
     const businessId = getBusinessId();
-    if (!businessId) return;
     if (typeof navigator !== "undefined" && !navigator.onLine) return;
     void syncBusiness(businessId);
   };

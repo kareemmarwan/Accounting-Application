@@ -109,6 +109,10 @@ export function DashboardPageClient() {
           مرحباً بك في المساعد المالي — أكمل إعداد مشروعك (دقيقة واحدة) لتبدأ
           تسجيل العمليات محلياً حتى دون إنترنت.
         </p>
+        <p className="text-xs leading-relaxed text-muted">
+          لديك مشروع سابق بنفس البريد الإلكتروني؟ سيُستعاد تلقائياً خلال لحظات
+          عند توفر الإنترنت.
+        </p>
         <Link href="/onboarding" className="btn-primary">
           إعداد المشروع
         </Link>
