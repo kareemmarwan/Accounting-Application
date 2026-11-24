@@ -20,6 +20,7 @@ import {
   X
 } from "lucide-react";
 import { ConnectionStatus } from "@/components/connection-status";
+import { InstallAppButton } from "@/components/install-app-button";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { HeaderUser } from "@/components/layout/header-user";
 import type { SubscriptionBannerInfo } from "@/app/(app)/layout";
@@ -118,6 +119,7 @@ export function AppShell({
               <Link
                 key={item.href}
                 href={item.href}
+                data-tour={`nav-${item.href.slice(1)}`}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
                     ? "bg-primary-50 text-primary-700"
@@ -207,6 +209,7 @@ export function AppShell({
           </span>
           <div className="flex items-center gap-2">
             <ConnectionStatus />
+            <InstallAppButton className="btn-outline !px-2.5 !py-2" showLabel={false} />
             <HeaderUser />
           </div>
         </header>

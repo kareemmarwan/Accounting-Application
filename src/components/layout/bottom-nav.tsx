@@ -117,6 +117,7 @@ export function BottomNav({
             <Link
               href="/pos"
               aria-label="الكاشير — بيع سريع"
+              data-tour="bnav-pos"
               className="relative flex h-16 w-16 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-4 ring-surface transition-transform active:scale-95"
             >
               <ScanBarcode className="h-6 w-6" aria-hidden />
@@ -130,6 +131,7 @@ export function BottomNav({
           onClick={() => setOpen(true)}
           aria-expanded={open}
           aria-haspopup="dialog"
+          data-tour="bnav-more"
           className={`flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium ${
             open ? "text-primary" : "text-muted"
           }`}
@@ -181,6 +183,7 @@ function BarCell({ item, active }: { item: NavItem; active: boolean }) {
   return (
     <Link
       href={item.href}
+      data-tour={`bnav-${item.href.slice(1)}`}
       className={`flex flex-1 flex-col items-center gap-1 py-2 text-[11px] font-medium transition-colors ${
         active ? "text-primary" : "text-muted"
       }`}

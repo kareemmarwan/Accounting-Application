@@ -66,6 +66,7 @@ export function ExpensesPageClient() {
         <button
           type="button"
           onClick={() => setFormOpen((open) => !open)}
+          data-tour="expenses-add"
           className="btn-primary"
         >
           <Plus className="h-4 w-4" aria-hidden />

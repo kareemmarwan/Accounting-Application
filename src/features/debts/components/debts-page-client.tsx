@@ -161,7 +161,7 @@ export function DebtsPageClient() {
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2" data-tour="debts-tabs">
         {(Object.keys(TAB_LABELS) as Tab[]).map((key) => {
           const count = (debts ?? []).filter(
             (debt) => debt.direction === key && debt.status !== "settled"

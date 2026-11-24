@@ -60,13 +60,55 @@ export async function POST(request: Request) {
   const { businessId, since } = parsed.data;
   const serverTime = new Date().toISOString();
   const deltas: SyncPullDelta[] = [];
+  const sinceEpoch = since ?? "1970-01-01T00:00:00.000Z";
+
+  const { data: memberships, error: membershipsError } = await supabase
+    .from("business_members")
+    .select("business_id")
+    .eq("user_id", user.id);
+
+  if (membershipsError) {
+    return NextResponse.json(
+      { ok: false, error: `تعذر سحب المشاريع: ${membershipsError.message}` },
+      { status: 500 }
+    );
+  }
+
+  const memberBusinessIds = Array.from(
+    new Set(
+      ((memberships ?? []) as Array<{ business_id?: string }>)
+        .map((row) => row.business_id)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    )
+  );
+
+  if (memberBusinessIds.length > 0) {
+    const { data: businessRows, error: businessError } = await supabase
+      .from("businesses")
+      .select("*")
+      .in("id", memberBusinessIds)
+      .gt("updated_at", sinceEpoch)
+      .order("updated_at", { ascending: true })
+      .limit(PAGE_SIZE);
+
+    if (businessError) {
+      return NextResponse.json(
+        { ok: false, error: `تعذر سحب businesses: ${businessError.message}` },
+        { status: 500 }
+      );
+    }
+
+    if (businessRows && businessRows.length > 0) {
+      deltas.push({ table: "businesses", rows: businessRows });
+    }
+  }
 
   for (const table of PULL_TABLES) {
     let query = supabase
       .from(table)
       .select("*")
       .eq("business_id", businessId)
-      .gt("updated_at", since ?? "1970-01-01T00:00:00.000Z")
+      .gt("updated_at", sinceEpoch)
       .order("updated_at", { ascending: true })
       .limit(PAGE_SIZE);
 

@@ -628,7 +628,7 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
                     </option>
                   ))}
                 </select>
-                <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" data-tour="pos-scan">
                   <label className="shrink-0 text-xs text-muted" htmlFor="pos-paid">المدفوع</label>
                   <input
                     id="pos-paid"
@@ -704,6 +704,7 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
               type="button"
               onClick={() => void handleCheckout()}
               disabled={busy || cart.length === 0}
+              data-tour="pos-checkout"
               className="btn-primary w-full !py-3 text-base"
             >
               {busy ? "جارٍ الحفظ..." : `إتمام البيع — ${formatCurrency(netMinor, business.currency)}`}

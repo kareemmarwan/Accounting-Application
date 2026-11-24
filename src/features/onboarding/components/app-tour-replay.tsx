@@ -7,6 +7,7 @@ export function AppTourReplay() {
   return (
     <button
       type="button"
+      data-tour="tour-replay"
       onClick={() => {
         try {
           window.localStorage.removeItem(APP_TOUR_KEY);

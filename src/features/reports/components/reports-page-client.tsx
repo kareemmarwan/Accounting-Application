@@ -119,7 +119,7 @@ export function ReportsPageClient() {
         </p>
       </div>
 
-      <div className="card space-y-4 print:hidden">
+      <div className="card space-y-4 print:hidden" data-tour="reports-period">
         <div className="flex flex-wrap gap-2">
           {REPORT_ORDER.map((key) => (
             <button

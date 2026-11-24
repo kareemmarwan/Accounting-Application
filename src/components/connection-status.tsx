@@ -45,6 +45,7 @@ export function ConnectionStatus() {
     return (
       <span
         className="inline-flex h-8 w-20 items-center justify-center rounded-full border border-border bg-muted-foreground/5 text-xs text-muted"
+        data-tour="connection-status"
         aria-hidden
       >
         ...
@@ -57,7 +58,7 @@ export function ConnectionStatus() {
   const syncingNow = sync.status === "syncing" && online;
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5" data-tour="connection-status">
       {showPending && (
         <button
           type="button"

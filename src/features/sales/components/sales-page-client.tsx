@@ -66,6 +66,7 @@ export function SalesPageClient() {
         <button
           type="button"
           onClick={() => setFormOpen((open) => !open)}
+          data-tour="sales-new"
           className="btn-primary"
         >
           <Plus className="h-4 w-4" aria-hidden />

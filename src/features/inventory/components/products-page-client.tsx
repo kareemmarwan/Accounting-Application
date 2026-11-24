@@ -128,6 +128,7 @@ export function ProductsPageClient({
         {canManage && (
           <button
             type="button"
+            data-tour="products-add"
             onClick={() => {
               setEditing(null);
               setFormKey((key) => key + 1);

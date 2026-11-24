@@ -24,6 +24,7 @@
     "date-fns": "^3.6.0",
     "dexie": "^4.0.8",
     "dexie-react-hooks": "^1.1.7",
+    "driver.js": "^1.14.0",
     "lucide-react": "^0.446.0",
     "next": "14.2.13",
     "react": "18.3.1",

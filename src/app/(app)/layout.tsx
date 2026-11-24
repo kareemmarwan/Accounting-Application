@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { AppTour } from "@/features/onboarding/components/app-tour";
 import { getSupabaseServerClient } from "@/core/supabase/server";
+import { safeQuery } from "@/core/supabase/safe-query";
 import { getSessionUser } from "@/features/auth/server/session";
 import { getActiveBusinessId } from "@/features/business/server/business-context";
 import { computeEffectivePlan, maxMembersFor } from "@/features/subscription/plans";
@@ -31,30 +32,43 @@ export default async function AppLayout({
   let role: NavRole = null;
   let subscription: SubscriptionBannerInfo | null = null;
   let isAdmin = false;
+  let hasBusiness = false;
 
   if (supabase && user) {
     const [adminRes, membershipRes, businessRes] = await Promise.all([
-      supabase
-        .from("platform_admins")
-        .select("user_id")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      supabase
-        .from("business_members")
-        .select("role")
-        .eq("business_id", activeId)
-        .eq("user_id", user?.id ?? "")
-        .maybeSingle(),
-      supabase
-        .from("businesses")
-        .select("plan, subscription_status, trial_ends_at")
-        .eq("id", activeId)
-        .maybeSingle()
+      safeQuery(
+        () =>
+          supabase
+            .from("platform_admins")
+            .select("user_id")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+        null
+      ),
+      safeQuery(
+        () =>
+          supabase
+            .from("business_members")
+            .select("role")
+            .eq("business_id", activeId)
+            .eq("user_id", user?.id ?? "")
+            .maybeSingle(),
+        null
+      ),
+      safeQuery(
+        () =>
+          supabase
+            .from("businesses")
+            .select("plan, subscription_status, trial_ends_at")
+            .eq("id", activeId)
+            .maybeSingle(),
+        null
+      )
     ]);
 
-    isAdmin = adminRes.data !== null;
+    isAdmin = Boolean(adminRes?.data);
 
-    const membershipRole = (membershipRes.data as { role?: string } | null)?.role;
+    const membershipRole = (membershipRes?.data as { role?: string } | null)?.role;
     if (
       membershipRole === "owner" ||
       membershipRole === "manager" ||
@@ -64,7 +78,7 @@ export default async function AppLayout({
       role = membershipRole;
     }
 
-    if (businessRes.data) {
+    if (businessRes?.data) {
       const row = businessRes.data as {
         plan?: string;
         subscription_status?: string;
@@ -93,12 +107,13 @@ export default async function AppLayout({
         inTrial: subscriptionStatus === "trialing" && trialDaysLeft > 0
       };
     }
+    hasBusiness = businessRes?.data != null;
   }
 
   return (
     <AppShell role={role} isAdmin={isAdmin} subscription={subscription}>
       {children}
-      <AppTour />
+      <AppTour role={role} enabled={hasBusiness} />
     </AppShell>
   );
 }
