@@ -34,16 +34,21 @@ export function SubscriptionCard({
   async function handleRequest(plan: PaidPlanId) {
     setSubmitting(plan);
     setMessage(null);
-    const result = await requestSubscription({ businessId, plan });
-    setSubmitting(null);
-    if (result.ok) {
-      setMessage({
-        tone: "ok",
-        text: `تم تسجيل طلب الاشتراك في الخطة ${PLANS[plan].label} — سيتم التفعيل بعد تأكيد الدفع مع فريق الاشتراكات، ويمكنك متابعة الحالة من هنا.`
-      });
-      window.setTimeout(() => window.location.reload(), 1800);
-    } else {
-      setMessage({ tone: "error", text: result.error ?? "تعذر إرسال الطلب" });
+    try {
+      const result = await requestSubscription({ businessId, plan });
+      if (result.ok) {
+        setMessage({
+          tone: "ok",
+          text: `تم تسجيل طلب الاشتراك في الخطة ${PLANS[plan].label} — سيتم التفعيل بعد تأكيد الدفع مع فريق الاشتراكات، ويمكنك متابعة الحالة من هنا.`
+        });
+        window.setTimeout(() => window.location.reload(), 1800);
+      } else {
+        setMessage({ tone: "error", text: result.error ?? "تعذر إرسال الطلب" });
+      }
+    } catch {
+      setMessage({ tone: "error", text: "أنت دون اتصال — طلبات الاشتراك تتطلب الإنترنت" });
+    } finally {
+      setSubmitting(null);
     }
   }
 
@@ -51,16 +56,21 @@ export function SubscriptionCard({
     if (!overview.pendingRequest) return;
     setSubmitting("cancel");
     setMessage(null);
-    const result = await cancelSubscriptionRequest({
-      businessId,
-      subscriptionId: overview.pendingRequest.id
-    });
-    setSubmitting(null);
-    if (result.ok) {
-      setMessage({ tone: "ok", text: "أُلغي طلب الترقية" });
-      window.setTimeout(() => window.location.reload(), 1200);
-    } else {
-      setMessage({ tone: "error", text: result.error ?? "تعذر الإلغاء" });
+    try {
+      const result = await cancelSubscriptionRequest({
+        businessId,
+        subscriptionId: overview.pendingRequest.id
+      });
+      if (result.ok) {
+        setMessage({ tone: "ok", text: "أُلغي طلب الترقية" });
+        window.setTimeout(() => window.location.reload(), 1200);
+      } else {
+        setMessage({ tone: "error", text: result.error ?? "تعذر الإلغاء" });
+      }
+    } catch {
+      setMessage({ tone: "error", text: "أنت دون اتصال — الإلغاء يتطلب الإنترنت" });
+    } finally {
+      setSubmitting(null);
     }
   }
 

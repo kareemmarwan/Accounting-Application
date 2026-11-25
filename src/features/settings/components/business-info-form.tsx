@@ -34,6 +34,8 @@ export function BusinessInfoForm({
       }
       setSaved(true);
       setEditing(false);
+    } catch {
+      setError("أنت دون اتصال — الحفظ السحابي يتطلب الإنترنت، بيانات البيع تعمل عادي");
     } finally {
       setBusy(false);
     }

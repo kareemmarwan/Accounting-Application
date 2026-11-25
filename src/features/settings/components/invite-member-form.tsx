@@ -45,18 +45,25 @@ export function InviteMemberForm({ businessId }: { businessId: string }) {
 
   const onSubmit = handleSubmit(async (values) => {
     setResultMessage(null);
-    const result = await inviteMember({
-      businessId,
-      email: values.email,
-      role: values.role
-    });
-    if (result.ok) {
-      setResultMessage({ kind: "ok", text: "أُرسلت الدعوة إلى البريد بنجاح" });
-      reset();
-    } else {
+    try {
+      const result = await inviteMember({
+        businessId,
+        email: values.email,
+        role: values.role
+      });
+      if (result.ok) {
+        setResultMessage({ kind: "ok", text: "أُرسلت الدعوة إلى البريد بنجاح" });
+        reset();
+      } else {
+        setResultMessage({
+          kind: "error",
+          text: result.error ?? "تعذر إرسال الدعوة"
+        });
+      }
+    } catch {
       setResultMessage({
         kind: "error",
-        text: result.error ?? "تعذر إرسال الدعوة"
+        text: "أنت دون اتصال — إرسال الدعوات يتطلب الإنترنت"
       });
     }
   });

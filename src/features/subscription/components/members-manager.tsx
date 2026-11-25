@@ -53,13 +53,18 @@ export function MembersManager({
   async function handleRoleChange(memberId: string, role: string) {
     setBusyId(memberId);
     setError(null);
-    const result = await updateMemberRole({ businessId, memberId, role });
-    setBusyId(null);
-    if (!result.ok) {
-      setError(result.error ?? "تعذر تحديث الدور");
-      return;
+    try {
+      const result = await updateMemberRole({ businessId, memberId, role });
+      if (!result.ok) {
+        setError(result.error ?? "تعذر تحديث الدور");
+        return;
+      }
+      window.location.reload();
+    } catch {
+      setError("أنت دون اتصال — تغيير الأدوار يتطلب الإنترنت");
+    } finally {
+      setBusyId(null);
     }
-    window.location.reload();
   }
 
   async function handleRemove(memberId: string) {
@@ -68,13 +73,18 @@ export function MembersManager({
     }
     setBusyId(memberId);
     setError(null);
-    const result = await removeMember({ businessId, memberId });
-    setBusyId(null);
-    if (!result.ok) {
-      setError(result.error ?? "تعذر إزالة العضو");
-      return;
+    try {
+      const result = await removeMember({ businessId, memberId });
+      if (!result.ok) {
+        setError(result.error ?? "تعذر إزالة العضو");
+        return;
+      }
+      window.location.reload();
+    } catch {
+      setError("أنت دون اتصال — إزالة الأعضاء تتطلب الإنترنت");
+    } finally {
+      setBusyId(null);
     }
-    window.location.reload();
   }
 
   return (
