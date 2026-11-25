@@ -7,6 +7,8 @@ import "driver.js/dist/driver.css";
 
 export const APP_TOUR_KEY = "musaed-app-tour-v2";
 
+const RESUME_KEY = "musaed-app-tour-resume";
+
 type NavRole = "owner" | "manager" | "accountant" | "employee" | null;
 
 const FINANCIAL: NavRole[] = ["owner", "manager", "accountant", null];
@@ -407,6 +409,15 @@ export function AppTour({
         abortWait();
         driverRef.current?.destroy();
         driverRef.current = null;
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          try {
+            window.sessionStorage.setItem(RESUME_KEY, String(globalIndex));
+          } catch {
+            void 0;
+          }
+          window.location.assign(route);
+          return;
+        }
         router.push(route);
         return;
       }
@@ -425,6 +436,37 @@ export function AppTour({
       seen = false;
     }
     if (seen || !enabled) return;
+
+    let resumeIndex: number | null = null;
+    try {
+      const raw = window.sessionStorage.getItem(RESUME_KEY);
+      if (raw !== null) {
+        window.sessionStorage.removeItem(RESUME_KEY);
+        const parsed = Number.parseInt(raw, 10);
+        if (Number.isInteger(parsed)) resumeIndex = parsed;
+      }
+    } catch {
+      void 0;
+    }
+
+    if (resumeIndex !== null) {
+      const def = planRef.current[resumeIndex];
+      const route = def?.route ?? null;
+      if (def && route && pathnameRef.current === route) {
+        void startSegment(resumeIndex);
+        return;
+      }
+      if (def && route && typeof navigator !== "undefined" && !navigator.onLine) {
+        try {
+          window.sessionStorage.setItem(RESUME_KEY, String(resumeIndex));
+        } catch {
+          void 0;
+        }
+        window.location.assign(route);
+        return;
+      }
+    }
+
     const timer = window.setTimeout(() => {
       void startSegment(0);
     }, 700);

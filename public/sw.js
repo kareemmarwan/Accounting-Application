@@ -1,4 +1,4 @@
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL_CACHE = `shell-${VERSION}`;
 const STATIC_CACHE = `static-${VERSION}`;
 
@@ -47,10 +47,11 @@ async function putBoth(cache, request, response) {
   }
 }
 
-async function precacheShell() {
+async function precacheShell(includeAppRoutes) {
+  const urls = includeAppRoutes ? BASE_ASSETS.concat(APP_ROUTES) : BASE_ASSETS;
   const cache = await caches.open(SHELL_CACHE);
   await Promise.all(
-    BASE_ASSETS.map((url) =>
+    urls.map((url) =>
       fetch(url, { cache: "reload" })
         .then((response) => putBoth(cache, new Request(url), response))
         .catch(() => undefined)
@@ -61,7 +62,7 @@ async function precacheShell() {
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    precacheShell()
+    precacheShell(false)
       .catch(() => undefined)
       .then(() => self.skipWaiting())
   );
@@ -86,7 +87,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "PRECACHE_APP_SHELL") {
     event.waitUntil(
-      precacheShell().catch(() => undefined)
+      precacheShell(true).catch(() => undefined)
     );
   }
 });
@@ -98,10 +99,6 @@ async function fallbackNavigation(request) {
 
   const url = new URL(request.url);
   if (url.pathname === "/" || isAppRoute(url.pathname)) {
-    for (const route of APP_ROUTES) {
-      const cached = await cache.match(route, { ignoreSearch: true, ignoreVary: true });
-      if (cached) return cached;
-    }
     const root = await cache.match("/", { ignoreSearch: true, ignoreVary: true });
     if (root) return root;
   }

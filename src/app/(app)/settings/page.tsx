@@ -3,9 +3,12 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Building2, ShieldAlert, Users } from "lucide-react";
 import { getSupabaseServerClient } from "@/core/supabase/server";
-import { safeQuery } from "@/core/supabase/safe-query";
+import { withTtlCache } from "@/core/cache/server-memory";
 import { getSessionUser } from "@/features/auth/server/session";
 import { getActiveBusinessId } from "@/features/business/server/business-context";
+import {
+  getSettingsData
+} from "@/features/settings/server/settings-data";
 import { SignOutButton } from "@/features/settings/components/sign-out-button";
 import { InviteMemberForm } from "@/features/settings/components/invite-member-form";
 import { BackupExport } from "@/features/settings/components/backup-export";
@@ -34,28 +37,7 @@ const ROLE_LABELS: Record<string, string> = {
   employee: "موظف"
 };
 
-interface MemberRow {
-  id: string;
-  userId: string;
-  fullName: string | null;
-  role: string;
-  status: string;
-}
-
-interface MemberRaw {
-  id: string;
-  role: string;
-  status: string;
-  user_id: string;
-  profile: { full_name: string } | { full_name: string }[] | null;
-}
-
-function profileName(
-  profile: MemberRaw["profile"]
-): string | null {
-  if (Array.isArray(profile)) return profile[0]?.full_name ?? null;
-  return profile?.full_name ?? null;
-}
+const SUBSCRIPTION_TTL_MS = 60_000;
 
 export default async function SettingsPage() {
   const user = await getSessionUser();
@@ -79,52 +61,23 @@ export default async function SettingsPage() {
     );
   }
 
-  const [businessesRes, activeId] = await Promise.all([
-    safeQuery(
-      () =>
-        supabase
-          .from("businesses")
-          .select("id, name, business_type, currency, plan, phone, address")
-          .order("created_at", { ascending: true }),
-      null
-    ),
-    getActiveBusinessId()
-  ]);
-  const businesses = businessesRes?.data ?? null;
+  const activeIdCookie = await getActiveBusinessId();
+  const data = await getSettingsData(user.id, activeIdCookie);
+  const list = data.businesses;
+  const effectiveActive = data.activeId;
 
-  const list = businesses ?? [];
-  const effectiveActive =
-    activeId && list.some((business) => business.id === activeId)
-      ? activeId
-      : (list[0]?.id ?? null);
+  const members = data.members;
 
-  let members: MemberRow[] = [];
-  if (effectiveActive) {
-    const membersRes = await safeQuery(
-      () =>
-        supabase
-          .from("business_members")
-          .select("id, role, status, user_id, profile:profiles(full_name)")
-          .eq("business_id", effectiveActive)
-          .order("created_at", { ascending: true }),
-      null
-    );
-    const rows = ((membersRes?.data ?? []) as unknown as MemberRaw[]);
-    members = rows.map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      fullName: profileName(row.profile),
-      role: row.role,
-      status: row.status
-    }));
-  }
-
-  const viewerRole = members.find((member) => member.userId === user.id)?.role;
   const activeBusiness = list.find((business) => business.id === effectiveActive);
+  const viewerRole = members.find((member) => member.userId === user.id)?.role;
   const isOwner = viewerRole === "owner";
 
   const subscriptionResult = effectiveActive
-    ? await safeQuery(() => getSubscriptionOverview(effectiveActive), null)
+    ? await withTtlCache(
+        `sub:${user.id}:${effectiveActive}`,
+        SUBSCRIPTION_TTL_MS,
+        () => getSubscriptionOverview(effectiveActive)
+      )
     : null;
   const overview =
     subscriptionResult && subscriptionResult.ok

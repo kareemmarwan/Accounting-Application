@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { getSupabaseConfig } from "@/core/supabase/env";
 import { getSupabaseServerClient } from "@/core/supabase/server";
+import { invalidateServerCache } from "@/core/cache/server-memory";
 import { getSessionUser } from "@/features/auth/server/session";
 import { NOT_CONFIGURED_MESSAGE } from "@/features/auth/services/auth-errors";
 import {
@@ -151,6 +152,7 @@ export async function inviteMember(
   }
 
   revalidatePath("/settings");
+  invalidateServerCache();
   return { ok: true };
 }
 
@@ -213,6 +215,7 @@ export async function updateBusiness(
   }
 
   revalidatePath("/settings");
+  invalidateServerCache();
   return { ok: true };
 }
 
@@ -261,5 +264,6 @@ export async function archiveBusiness(
 
   revalidatePath("/");
   revalidatePath("/settings");
+  invalidateServerCache();
   return { ok: true };
 }

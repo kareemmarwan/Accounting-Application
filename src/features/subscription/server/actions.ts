@@ -1,33 +1,34 @@
-"use server";
+﻿"use server";
 
 import { z } from "zod";
 import { getSupabaseServerClient } from "@/core/supabase/server";
+import { invalidateServerCache } from "@/core/cache/server-memory";
 import { getSessionUser } from "@/features/auth/server/session";
 import { NOT_CONFIGURED_MESSAGE } from "@/features/auth/services/auth-errors";
 import { computeEffectivePlan, maxMembersFor, PLANS } from "@/features/subscription/plans";
 
-const businessIdSchema = z.string().uuid("معرّف مشروع غير صالح");
+const businessIdSchema = z.string().uuid("ظ…ط¹ط±ظ‘ظپ ظ…ط´ط±ظˆط¹ ط؛ظٹط± طµط§ظ„ط­");
 
 const requestSchema = z.object({
   businessId: businessIdSchema,
   plan: z.enum(["basic", "pro", "business"], {
-    errorMap: () => ({ message: "اختر خطة صحيحة" })
+    errorMap: () => ({ message: "ط§ط®طھط± ط®ط·ط© طµط­ظٹط­ط©" })
   })
 });
 
 const cancelSchema = z.object({
   businessId: businessIdSchema,
-  subscriptionId: z.string().uuid("معرّف اشتراك غير صالح")
+  subscriptionId: z.string().uuid("ظ…ط¹ط±ظ‘ظپ ط§ط´طھط±ط§ظƒ ط؛ظٹط± طµط§ظ„ط­")
 });
 
 const memberActionSchema = z.object({
   businessId: businessIdSchema,
-  memberId: z.string().uuid("معرّف عضو غير صالح")
+  memberId: z.string().uuid("ظ…ط¹ط±ظ‘ظپ ط¹ط¶ظˆ ط؛ظٹط± طµط§ظ„ط­")
 });
 
 const roleActionSchema = memberActionSchema.extend({
   role: z.enum(["manager", "accountant", "employee"], {
-    errorMap: () => ({ message: "اختر دوراً صحيحاً" })
+    errorMap: () => ({ message: "ط§ط®طھط± ط¯ظˆط±ط§ظ‹ طµط­ظٹط­ط§ظ‹" })
   })
 });
 
@@ -57,10 +58,10 @@ export async function getSubscriptionOverview(
   businessId: string
 ): Promise<SubscriptionOverviewResult> {
   if (!businessIdSchema.safeParse(businessId).success) {
-    return { ok: false, error: "معرّف مشروع غير صالح" };
+    return { ok: false, error: "ظ…ط¹ط±ظ‘ظپ ظ…ط´ط±ظˆط¹ ط؛ظٹط± طµط§ظ„ط­" };
   }
   const user = await getSessionUser();
-  if (!user) return { ok: false, error: "انتهت الجلسة — سجّل الدخول من جديد" };
+  if (!user) return { ok: false, error: "ط§ظ†طھظ‡طھ ط§ظ„ط¬ظ„ط³ط© â€” ط³ط¬ظ‘ظ„ ط§ظ„ط¯ط®ظˆظ„ ظ…ظ† ط¬ط¯ظٹط¯" };
 
   const supabase = getSupabaseServerClient();
   if (!supabase) return { ok: false, error: NOT_CONFIGURED_MESSAGE };
@@ -83,7 +84,7 @@ export async function getSubscriptionOverview(
   ]);
 
   if (businessRes.error || !businessRes.data) {
-    return { ok: false, error: "تعذر جلب بيانات الاشتراك" };
+    return { ok: false, error: "طھط¹ط°ط± ط¬ظ„ط¨ ط¨ظٹط§ظ†ط§طھ ط§ظ„ط§ط´طھط±ط§ظƒ" };
   }
 
   const business = businessRes.data;
@@ -143,11 +144,11 @@ export async function requestSubscription(input: {
 }): Promise<PlanActionResult> {
   const parsed = requestSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± طµط§ظ„ط­ط©" };
   }
 
   const user = await getSessionUser();
-  if (!user) return { ok: false, error: "انتهت الجلسة — سجّل الدخول من جديد" };
+  if (!user) return { ok: false, error: "ط§ظ†طھظ‡طھ ط§ظ„ط¬ظ„ط³ط© â€” ط³ط¬ظ‘ظ„ ط§ظ„ط¯ط®ظˆظ„ ظ…ظ† ط¬ط¯ظٹط¯" };
 
   const supabase = getSupabaseServerClient();
   if (!supabase) return { ok: false, error: NOT_CONFIGURED_MESSAGE };
@@ -160,7 +161,7 @@ export async function requestSubscription(input: {
     .maybeSingle();
 
   if (!membership || membership.role !== "owner") {
-    return { ok: false, error: "فقط مالك المشروع يمكنه طلب ترقية الخطة" };
+    return { ok: false, error: "ظپظ‚ط· ظ…ط§ظ„ظƒ ط§ظ„ظ…ط´ط±ظˆط¹ ظٹظ…ظƒظ†ظ‡ ط·ظ„ط¨ طھط±ظ‚ظٹط© ط§ظ„ط®ط·ط©" };
   }
 
   const { data: existing } = await supabase
@@ -173,7 +174,7 @@ export async function requestSubscription(input: {
   if (existing) {
     return {
       ok: false,
-      error: "يوجد طلب ترقية قيد المعالجة بالفعل — تابع حالته من صفحة الإعدادات"
+      error: "ظٹظˆط¬ط¯ ط·ظ„ط¨ طھط±ظ‚ظٹط© ظ‚ظٹط¯ ط§ظ„ظ…ط¹ط§ظ„ط¬ط© ط¨ط§ظ„ظپط¹ظ„ â€” طھط§ط¨ط¹ ط­ط§ظ„طھظ‡ ظ…ظ† طµظپط­ط© ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ"
     };
   }
 
@@ -185,9 +186,10 @@ export async function requestSubscription(input: {
   });
 
   if (error) {
-    return { ok: false, error: "تعذر تسجيل طلب الترقية — أعد المحاولة" };
+    return { ok: false, error: "طھط¹ط°ط± طھط³ط¬ظٹظ„ ط·ظ„ط¨ ط§ظ„طھط±ظ‚ظٹط© â€” ط£ط¹ط¯ ط§ظ„ظ…ط­ط§ظˆظ„ط©" };
   }
 
+  invalidateServerCache();
   return { ok: true };
 }
 
@@ -197,11 +199,11 @@ export async function cancelSubscriptionRequest(input: {
 }): Promise<PlanActionResult> {
   const parsed = cancelSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± طµط§ظ„ط­ط©" };
   }
 
   const user = await getSessionUser();
-  if (!user) return { ok: false, error: "انتهت الجلسة — سجّل الدخول من جديد" };
+  if (!user) return { ok: false, error: "ط§ظ†طھظ‡طھ ط§ظ„ط¬ظ„ط³ط© â€” ط³ط¬ظ‘ظ„ ط§ظ„ط¯ط®ظˆظ„ ظ…ظ† ط¬ط¯ظٹط¯" };
 
   const supabase = getSupabaseServerClient();
   if (!supabase) return { ok: false, error: NOT_CONFIGURED_MESSAGE };
@@ -214,7 +216,7 @@ export async function cancelSubscriptionRequest(input: {
     .maybeSingle();
 
   if (!membership || membership.role !== "owner") {
-    return { ok: false, error: "فقط مالك المشروع يمكنه إدارة طلب الترقية" };
+    return { ok: false, error: "ظپظ‚ط· ظ…ط§ظ„ظƒ ط§ظ„ظ…ط´ط±ظˆط¹ ظٹظ…ظƒظ†ظ‡ ط¥ط¯ط§ط±ط© ط·ظ„ط¨ ط§ظ„طھط±ظ‚ظٹط©" };
   }
 
   const { error } = await supabase
@@ -225,9 +227,10 @@ export async function cancelSubscriptionRequest(input: {
     .eq("status", "requested");
 
   if (error) {
-    return { ok: false, error: "تعذر إلغاء الطلب — أعد المحاولة" };
+    return { ok: false, error: "طھط¹ط°ط± ط¥ظ„ط؛ط§ط، ط§ظ„ط·ظ„ط¨ â€” ط£ط¹ط¯ ط§ظ„ظ…ط­ط§ظˆظ„ط©" };
   }
 
+  invalidateServerCache();
   return { ok: true };
 }
 
@@ -240,11 +243,11 @@ export async function updateMemberRole(input: {
 }): Promise<MemberActionResult> {
   const parsed = roleActionSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± طµط§ظ„ط­ط©" };
   }
 
   const user = await getSessionUser();
-  if (!user) return { ok: false, error: "انتهت الجلسة — سجّل الدخول من جديد" };
+  if (!user) return { ok: false, error: "ط§ظ†طھظ‡طھ ط§ظ„ط¬ظ„ط³ط© â€” ط³ط¬ظ‘ظ„ ط§ظ„ط¯ط®ظˆظ„ ظ…ظ† ط¬ط¯ظٹط¯" };
 
   const supabase = getSupabaseServerClient();
   if (!supabase) return { ok: false, error: NOT_CONFIGURED_MESSAGE };
@@ -257,7 +260,7 @@ export async function updateMemberRole(input: {
     .maybeSingle();
 
   if (!membership || membership.role !== "owner") {
-    return { ok: false, error: "فقط مالك المشروع يمكنه تعديل الأدوار" };
+    return { ok: false, error: "ظپظ‚ط· ظ…ط§ظ„ظƒ ط§ظ„ظ…ط´ط±ظˆط¹ ظٹظ…ظƒظ†ظ‡ طھط¹ط¯ظٹظ„ ط§ظ„ط£ط¯ظˆط§ط±" };
   }
 
   const { data: target } = await supabase
@@ -267,9 +270,9 @@ export async function updateMemberRole(input: {
     .eq("business_id", parsed.data.businessId)
     .maybeSingle();
 
-  if (!target) return { ok: false, error: "العضو غير موجود" };
+  if (!target) return { ok: false, error: "ط§ظ„ط¹ط¶ظˆ ط؛ظٹط± ظ…ظˆط¬ظˆط¯" };
   if (target.role === "owner") {
-    return { ok: false, error: "لا يمكن تغيير دور مالك المشروع" };
+    return { ok: false, error: "ظ„ط§ ظٹظ…ظƒظ† طھط؛ظٹظٹط± ط¯ظˆط± ظ…ط§ظ„ظƒ ط§ظ„ظ…ط´ط±ظˆط¹" };
   }
 
   const { error } = await supabase
@@ -279,9 +282,10 @@ export async function updateMemberRole(input: {
     .eq("business_id", parsed.data.businessId);
 
   if (error) {
-    return { ok: false, error: "تعذر تحديث الدور — أعد المحاولة" };
+    return { ok: false, error: "طھط¹ط°ط± طھط­ط¯ظٹط« ط§ظ„ط¯ظˆط± â€” ط£ط¹ط¯ ط§ظ„ظ…ط­ط§ظˆظ„ط©" };
   }
 
+  invalidateServerCache();
   return { ok: true };
 }
 
@@ -291,11 +295,11 @@ export async function removeMember(input: {
 }): Promise<MemberActionResult> {
   const parsed = memberActionSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "بيانات غير صالحة" };
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± طµط§ظ„ط­ط©" };
   }
 
   const user = await getSessionUser();
-  if (!user) return { ok: false, error: "انتهت الجلسة — سجّل الدخول من جديد" };
+  if (!user) return { ok: false, error: "ط§ظ†طھظ‡طھ ط§ظ„ط¬ظ„ط³ط© â€” ط³ط¬ظ‘ظ„ ط§ظ„ط¯ط®ظˆظ„ ظ…ظ† ط¬ط¯ظٹط¯" };
 
   const supabase = getSupabaseServerClient();
   if (!supabase) return { ok: false, error: NOT_CONFIGURED_MESSAGE };
@@ -308,7 +312,7 @@ export async function removeMember(input: {
     .maybeSingle();
 
   if (!membership || membership.role !== "owner") {
-    return { ok: false, error: "فقط مالك المشروع يمكنه إزالة الأعضاء" };
+    return { ok: false, error: "ظپظ‚ط· ظ…ط§ظ„ظƒ ط§ظ„ظ…ط´ط±ظˆط¹ ظٹظ…ظƒظ†ظ‡ ط¥ط²ط§ظ„ط© ط§ظ„ط£ط¹ط¶ط§ط،" };
   }
 
   const { data: target } = await supabase
@@ -318,9 +322,9 @@ export async function removeMember(input: {
     .eq("business_id", parsed.data.businessId)
     .maybeSingle();
 
-  if (!target) return { ok: false, error: "العضو غير موجود" };
+  if (!target) return { ok: false, error: "ط§ظ„ط¹ط¶ظˆ ط؛ظٹط± ظ…ظˆط¬ظˆط¯" };
   if (target.role === "owner") {
-    return { ok: false, error: "لا يمكن إزالة مالك المشروع" };
+    return { ok: false, error: "ظ„ط§ ظٹظ…ظƒظ† ط¥ط²ط§ظ„ط© ظ…ط§ظ„ظƒ ط§ظ„ظ…ط´ط±ظˆط¹" };
   }
 
   const { error } = await supabase
@@ -330,8 +334,9 @@ export async function removeMember(input: {
     .eq("business_id", parsed.data.businessId);
 
   if (error) {
-    return { ok: false, error: "تعذر إزالة العضو — أعد المحاولة" };
+    return { ok: false, error: "طھط¹ط°ط± ط¥ط²ط§ظ„ط© ط§ظ„ط¹ط¶ظˆ â€” ط£ط¹ط¯ ط§ظ„ظ…ط­ط§ظˆظ„ط©" };
   }
 
+  invalidateServerCache();
   return { ok: true };
 }

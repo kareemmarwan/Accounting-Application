@@ -1,119 +1,30 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { AppTour } from "@/features/onboarding/components/app-tour";
-import { getSupabaseServerClient } from "@/core/supabase/server";
-import { safeQuery } from "@/core/supabase/safe-query";
 import { getSessionUser } from "@/features/auth/server/session";
 import { getActiveBusinessId } from "@/features/business/server/business-context";
-import { computeEffectivePlan, maxMembersFor } from "@/features/subscription/plans";
+import {
+  getAppShellData,
+  type SubscriptionBannerInfo
+} from "@/features/business/server/app-shell-data";
 
-export interface SubscriptionBannerInfo {
-  plan: string;
-  subscriptionStatus: string;
-  trialEndsAt: string | null;
-  effectivePlan: string;
-  maxMembers: number;
-  trialDaysLeft: number;
-  inTrial: boolean;
-}
-
-type NavRole = "owner" | "manager" | "accountant" | "employee" | null;
+export type { SubscriptionBannerInfo };
 
 export default async function AppLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
-  const [user, activeId, supabase] = await Promise.all([
+  const [user, activeId] = await Promise.all([
     getSessionUser(),
-    getActiveBusinessId(),
-    getSupabaseServerClient()
+    getActiveBusinessId()
   ]);
 
-  let role: NavRole = null;
-  let subscription: SubscriptionBannerInfo | null = null;
-  let isAdmin = false;
-  let hasBusiness = false;
-
-  if (supabase && user) {
-    const [adminRes, membershipRes, businessRes] = await Promise.all([
-      safeQuery(
-        () =>
-          supabase
-            .from("platform_admins")
-            .select("user_id")
-            .eq("user_id", user.id)
-            .maybeSingle(),
-        null
-      ),
-      safeQuery(
-        () =>
-          supabase
-            .from("business_members")
-            .select("role")
-            .eq("business_id", activeId)
-            .eq("user_id", user?.id ?? "")
-            .maybeSingle(),
-        null
-      ),
-      safeQuery(
-        () =>
-          supabase
-            .from("businesses")
-            .select("plan, subscription_status, trial_ends_at")
-            .eq("id", activeId)
-            .maybeSingle(),
-        null
-      )
-    ]);
-
-    isAdmin = Boolean(adminRes?.data);
-
-    const membershipRole = (membershipRes?.data as { role?: string } | null)?.role;
-    if (
-      membershipRole === "owner" ||
-      membershipRole === "manager" ||
-      membershipRole === "accountant" ||
-      membershipRole === "employee"
-    ) {
-      role = membershipRole;
-    }
-
-    if (businessRes?.data) {
-      const row = businessRes.data as {
-        plan?: string;
-        subscription_status?: string;
-        trial_ends_at?: string | null;
-      };
-      const subscriptionStatus = row.subscription_status ?? "trialing";
-      const trialEndsAt = row.trial_ends_at ?? null;
-      const trialDaysLeft = trialEndsAt
-        ? Math.max(
-            0,
-            Math.ceil((Date.parse(trialEndsAt) - Date.now()) / 86_400_000)
-          )
-        : 0;
-      const effectivePlan = computeEffectivePlan(
-        row.plan ?? "free",
-        subscriptionStatus,
-        trialEndsAt
-      );
-      subscription = {
-        plan: row.plan ?? "free",
-        subscriptionStatus,
-        trialEndsAt,
-        effectivePlan,
-        maxMembers: maxMembersFor(effectivePlan),
-        trialDaysLeft,
-        inTrial: subscriptionStatus === "trialing" && trialDaysLeft > 0
-      };
-    }
-    hasBusiness = businessRes?.data != null;
-  }
+  const shell = await getAppShellData(user?.id ?? null, activeId);
 
   return (
-    <AppShell role={role} isAdmin={isAdmin} subscription={subscription}>
+    <AppShell role={shell.role} isAdmin={shell.isAdmin} subscription={shell.subscription}>
       {children}
-      <AppTour role={role} enabled={hasBusiness} />
+      <AppTour role={shell.role} enabled={shell.hasBusiness} />
     </AppShell>
   );
 }
