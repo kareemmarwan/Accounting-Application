@@ -7,7 +7,9 @@ export function ServiceWorkerRegister() {
     if (process.env.NODE_ENV !== "production") return;
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .catch(() => {});
 
     if (navigator.storage && typeof navigator.storage.persisted === "function") {
       void navigator.storage
@@ -16,19 +18,31 @@ export function ServiceWorkerRegister() {
         .catch(() => undefined);
     }
 
-    if (!navigator.onLine) return;
-    if (window.sessionStorage.getItem("musaed-precache-shell") === "done") return;
-    window.sessionStorage.setItem("musaed-precache-shell", "done");
-    const sendPrecache = () => {
-      navigator.serviceWorker?.controller?.postMessage({
-        type: "PRECACHE_APP_SHELL"
+    const sendPrecache = () =>
+      navigator.serviceWorker.ready.then((registration) => {
+        if (registration.active) {
+          registration.active.postMessage({ type: "PRECACHE_APP_SHELL" });
+          return true;
+        }
+        return false;
       });
+
+    const precacheOnce = () => {
+      if (window.sessionStorage.getItem("musaed-precache-shell") === "done") return;
+      void sendPrecache()
+        .then((sent) => {
+          if (sent) window.sessionStorage.setItem("musaed-precache-shell", "done");
+        })
+        .catch(() => undefined);
     };
-    if (navigator.serviceWorker.controller) {
-      sendPrecache();
-    } else {
-      navigator.serviceWorker.ready.then(sendPrecache).catch(() => undefined);
+
+    if (navigator.onLine) {
+      precacheOnce();
     }
+
+    const onOnline = () => precacheOnce();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
   }, []);
 
   return null;

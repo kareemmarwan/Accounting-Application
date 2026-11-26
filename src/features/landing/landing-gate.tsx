@@ -18,9 +18,13 @@ export function LandingGate({ children }: { children: React.ReactNode }) {
       try {
         const { data } = await supabase.auth.getSession();
         if (data.session) {
-          navigator.serviceWorker?.controller?.postMessage({
-            type: "PRECACHE_APP_SHELL"
-          });
+          void navigator.serviceWorker?.ready
+            .then((registration) => {
+              registration.active?.postMessage({
+                type: "PRECACHE_APP_SHELL"
+              });
+            })
+            .catch(() => undefined);
           window.location.replace("/dashboard");
           return;
         }

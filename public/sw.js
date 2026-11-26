@@ -1,4 +1,4 @@
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL_CACHE = `shell-${VERSION}`;
 const STATIC_CACHE = `static-${VERSION}`;
 
@@ -29,14 +29,32 @@ const BASE_ASSETS = [
   "/register"
 ];
 
+const AUTH_PATHS = new Set(["/login", "/register"]);
+
 function isAppRoute(pathname) {
   return APP_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`)
   );
 }
 
+function isAuthPath(url) {
+  try {
+    return AUTH_PATHS.has(new URL(url).pathname);
+  } catch (error) {
+    void error;
+    return false;
+  }
+}
+
 async function putBoth(cache, request, response) {
   if (!response || !response.ok) return;
+  if (
+    response.redirected &&
+    isAuthPath(response.url) &&
+    !isAuthPath(request.url)
+  ) {
+    return;
+  }
   try {
     await cache.put(response.url || request.url, response.clone());
     if (!response.redirected) {
@@ -47,15 +65,60 @@ async function putBoth(cache, request, response) {
   }
 }
 
+// استخراج أصول /_next/static من HTML الصفحة — لضمان عمل الصفحة أوف لاين حتى لو لم تُزر من قبل
+function extractAssets(html) {
+  const urls = new Set();
+  const patterns = [
+    /<(?:script|link|img|source)[^>]+\b(?:src|href)="(\/_next\/[^"]+)"/g,
+    /<link[^>]+\bhref="(\/_next\/[^"]+\.css)"/g
+  ];
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(html))) {
+      urls.add(match[1]);
+    }
+  }
+  return [...urls];
+}
+
+async function precacheAsset(staticCache, assetPath, baseUrl) {
+  try {
+    const assetUrl = new URL(assetPath, baseUrl).href;
+    const existing = await staticCache.match(assetUrl, { ignoreVary: true });
+    if (existing) return;
+    const assetResponse = await fetch(assetUrl, { cache: "reload" });
+    if (assetResponse.ok) {
+      await staticCache.put(assetUrl, assetResponse.clone());
+    }
+  } catch (error) {
+    void error;
+  }
+}
+
 async function precacheShell(includeAppRoutes) {
   const urls = includeAppRoutes ? BASE_ASSETS.concat(APP_ROUTES) : BASE_ASSETS;
   const cache = await caches.open(SHELL_CACHE);
+  const staticCache = await caches.open(STATIC_CACHE);
   await Promise.all(
-    urls.map((url) =>
-      fetch(url, { cache: "reload" })
-        .then((response) => putBoth(cache, new Request(url), response))
-        .catch(() => undefined)
-    )
+    urls.map(async (url) => {
+      try {
+        const response = await fetch(url, { cache: "reload" });
+        if (!response.ok) return;
+        const contentType = response.headers.get("content-type") || "";
+        const isHtml = contentType.includes("text/html");
+        const html = isHtml ? await response.clone().text() : null;
+        await putBoth(cache, new Request(url), response);
+        if (html) {
+          const assets = extractAssets(html);
+          const pageUrl = new URL(url, self.location.origin).href;
+          await Promise.all(
+            assets.map((asset) => precacheAsset(staticCache, asset, pageUrl))
+          );
+        }
+      } catch (error) {
+        void error;
+      }
+    })
   );
   return cache;
 }
@@ -92,23 +155,23 @@ self.addEventListener("message", (event) => {
   }
 });
 
-async function fallbackNavigation(request) {
+async function serveOffline() {
   const cache = await caches.open(SHELL_CACHE);
-  const exact = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
-  if (exact) return exact;
-
-  const url = new URL(request.url);
-  if (url.pathname === "/" || isAppRoute(url.pathname)) {
-    const root = await cache.match("/", { ignoreSearch: true, ignoreVary: true });
-    if (root) return root;
-  }
-
   const offline = await cache.match("/offline.html", { ignoreVary: true });
   if (offline) return offline;
   return new Response("دون اتصال", {
     status: 503,
     headers: { "Content-Type": "text/plain; charset=utf-8" }
   });
+}
+
+async function fallbackNavigation(request) {
+  const cache = await caches.open(SHELL_CACHE);
+  const exact = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
+  if (exact) return exact;
+
+  // لا تخدم "/" كبديل لمسارات التطبيق — مع جلسة نشطة تسبّب حلقة إعادة توجيه لا نهائية
+  return serveOffline();
 }
 
 async function handleNavigation(request, event) {
@@ -150,6 +213,7 @@ self.addEventListener("fetch", (event) => {
 
   const isStatic =
     url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/_next/image") ||
     url.pathname.startsWith("/icons/") ||
     url.pathname === "/manifest.webmanifest";
 
