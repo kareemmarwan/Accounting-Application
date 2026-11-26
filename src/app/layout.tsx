@@ -9,6 +9,10 @@ import { ZoomGuard } from "@/components/zoom-guard";
 import { OfflineNavGuard } from "@/components/layout/offline-nav-guard";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ??
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  ),
   title: {
     default: "المساعد المالي",
     template: "%s | المساعد المالي"
@@ -25,6 +29,20 @@ export const metadata: Metadata = {
     capable: true,
     title: "المساعد المالي",
     statusBarStyle: "default"
+  },
+  openGraph: {
+    type: "website",
+    locale: "ar",
+    siteName: "المساعد المالي",
+    title: "المساعد المالي — محاسبة مشروعك كاملة من هاتفك",
+    description:
+      "بيع بالباركود، ديون وكشوف حسابات، مصروفات وصندوق، وأرباح وتقارير لحظية — كل ذلك بقيد محاسبي مزدوج تلقائي ويعمل حتى دون إنترنت."
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "المساعد المالي — محاسبة مشروعك كاملة من هاتفك",
+    description:
+      "بيع بالباركود، ديون وكشوف حسابات، مصروفات وصندوق، وأرباح وتقارير لحظية — بقيد محاسبي مزدوج تلقائي ويعمل حتى دون إنترنت."
   }
 };
 
