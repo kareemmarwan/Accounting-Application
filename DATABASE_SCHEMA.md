@@ -87,6 +87,7 @@ create type sync_state          as enum ('pending','syncing','synced','failed','
 | عمود | نوع | ملاحظات |
 |---|---|---|
 | id, business_id, name not null, phone, address, notes | | |
+| whatsapp | text (0017) | رقم واتساب دولي بأرقام فقط (مثل 966599123456) — لإرسال الفواتير مباشرة وتذكيرات الديون عبر wa.me |
 | current_balance | numeric(14,2) default 0 | العملاء: ما علينا قبضه (+). الموردون: ما ندينه (+) |
 | total_transactions | numeric(14,2) default 0 | إجمالي التعاملات |
 | last_transaction_at | timestamptz | |

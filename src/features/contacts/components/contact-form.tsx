@@ -29,6 +29,7 @@ export function ContactForm({ type, businessId, existing, onDone }: ContactFormP
     defaultValues: {
       name: existing?.name ?? "",
       phone: existing?.phone ?? "",
+      whatsapp: existing?.whatsapp ?? "",
       address: existing?.address ?? "",
       notes: existing?.notes ?? ""
     }
@@ -90,6 +91,19 @@ export function ContactForm({ type, businessId, existing, onDone }: ContactFormP
             placeholder="0599xxxxxx"
             className="input"
           />
+        </label>
+        <label className="flex flex-col gap-1.5 text-sm">
+          <span className="font-medium">واتساب (بصيغة دولية)</span>
+          <input
+            type="tel"
+            dir="ltr"
+            {...register("whatsapp")}
+            placeholder="966599123456"
+            className="input"
+          />
+          <span className="text-xs text-muted">
+            اختياري — لإرسال الفواتير وتذكيرات الديون عبر واتساب
+          </span>
         </label>
         <label className="flex flex-col gap-1.5 text-sm">
           <span className="font-medium">العنوان</span>

@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   CreditCard,
   FilePenLine,
+  MessageCircle,
   Minus,
   PackageOpen,
   Plus,
@@ -23,7 +24,8 @@ import {
 import { getDB, type LocalProduct, type LocalSale } from "@/core/db/db";
 import { Modal } from "@/components/ui/modal";
 import { fromMinor, toMinor } from "@/core/accounting/money";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { buildSaleInvoiceMessage, openWhatsapp } from "@/lib/whatsapp";
 import { fromMilli, parseQuantityToMilli, parseScaleBarcode, PRODUCT_UNIT_LABELS, UNIT_MILLI_LABELS } from "@/core/validation/product";
 import {
   findProductByBarcode,
@@ -36,7 +38,7 @@ import { isWeightUnit, posThemeFor } from "@/features/pos/themes";
 import { PosReceipt } from "@/features/pos/components/pos-receipt";
 import { PosAmendModal } from "@/features/pos/components/pos-amend-modal";
 import { BarcodeCameraScannerLazy } from "@/components/barcode-camera-scanner-lazy";
-import type { CreateSaleResult } from "@/features/sales/services/sales-service";
+import type { SaleItemDraft } from "@/features/sales/services/sales-service";
 
 interface BusinessInfo {
   id: string;
@@ -107,9 +109,13 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
   const [noteInput, setNoteInput] = useState("");
   const [receipt, setReceipt] = useState<{
     sale: LocalSale;
-    items: CreateSaleResult["items"];
+    items: SaleItemDraft[];
     netMinor: number;
   } | null>(null);
+  const receiptCustomer = useLiveQuery(async () => {
+    if (!receipt?.sale.customerId) return undefined;
+    return getDB().customers.get(receipt.sale.customerId);
+  }, [receipt]);
   const [amendOpen, setAmendOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
 
@@ -860,6 +866,35 @@ export function PosTerminal({ business }: { business: BusinessInfo }) {
                 <Printer className="h-4 w-4" aria-hidden />
                 طباعة الفاتورة
               </button>
+              {receiptCustomer?.whatsapp && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openWhatsapp(
+                      receiptCustomer.whatsapp,
+                      buildSaleInvoiceMessage({
+                        sale: receipt.sale,
+                        items: receipt.items.map((item) => ({
+                          name: item.name,
+                          quantityLabel: fromMilli(item.quantityMilli),
+                          totalMinor: item.totalMinor
+                        })),
+                        businessName: business.name,
+                        currency: business.currency,
+                        occurredAtLabel: formatDate(receipt.sale.occurredAt),
+                        paymentMethodLabel:
+                          PAYMENT_METHOD_LABELS[
+                            receipt.sale.paymentMethod as SalePaymentMethod
+                          ] ?? receipt.sale.paymentMethod
+                      })
+                    )
+                  }
+                  className="btn-secondary flex-1"
+                >
+                  <MessageCircle className="h-4 w-4" aria-hidden />
+                  إرسال واتساب
+                </button>
+              )}
               <button type="button" onClick={() => setReceipt(null)} className="btn-primary flex-1">
                 فاتورة جديدة
               </button>

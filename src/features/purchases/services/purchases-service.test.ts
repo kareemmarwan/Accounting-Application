@@ -48,6 +48,7 @@ async function seed() {
     businessId: BUSINESS_ID,
     name: "مورد تجريبي",
     phone: "0598123456",
+    whatsapp: "",
     address: "",
     notes: "",
     currentBalanceMinor: 0,

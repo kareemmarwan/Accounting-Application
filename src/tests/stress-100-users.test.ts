@@ -62,6 +62,7 @@ async function seedMerchant(index: number): Promise<MerchantIds> {
     businessId,
     name: "عميل التجار الجماعي",
     phone: "0599000000",
+    whatsapp: "",
     address: "",
     notes: "",
     currentBalanceMinor: 0,

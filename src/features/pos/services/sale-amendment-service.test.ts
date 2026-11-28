@@ -61,6 +61,7 @@ beforeEach(async () => {
     businessId: BUSINESS_ID,
     name: "عميل التعديل",
     phone: "",
+    whatsapp: "",
     address: "",
     notes: "",
     currentBalanceMinor: 0,

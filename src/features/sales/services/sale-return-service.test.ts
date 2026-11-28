@@ -48,6 +48,7 @@ async function seedSale(options: { withDebt: boolean }) {
     businessId: BUSINESS_ID,
     name: "عميل تجريبي",
     phone: "0599000000",
+    whatsapp: "",
     address: "",
     notes: "",
     currentBalanceMinor: options.withDebt ? 8000 : 0,

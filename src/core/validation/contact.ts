@@ -8,6 +8,27 @@ export const CONTACT_TYPE_LABELS: Record<ContactType, string> = {
   supplier: "مورد"
 };
 
+export function normalizeWhatsapp(raw: string): string {
+  return raw.replace(/\D/g, "");
+}
+
+export function isValidWhatsapp(raw: string): boolean {
+  const digits = normalizeWhatsapp(raw);
+  if (digits.length < 8 || digits.length > 15) return false;
+  if (digits.startsWith("0")) return false;
+  return true;
+}
+
+export const whatsappSchema = z
+  .string()
+  .trim()
+  .max(24, "رقم واتساب طويل جداً")
+  .refine(
+    (value) => value === "" || isValidWhatsapp(value),
+    "رقم واتساب غير صالح — أدخل رقماً دولياً مثل 966599123456 بلا صفر بادئ أو رموز"
+  )
+  .transform(normalizeWhatsapp);
+
 export const contactFormSchema = z.object({
   name: z
     .string()
@@ -18,6 +39,7 @@ export const contactFormSchema = z.object({
     .union([z.string().trim().min(3, "الهاتف قصير جداً").max(24, "الهاتف طويل جداً"), z.literal("")])
     .optional()
     .default(""),
+  whatsapp: whatsappSchema.optional().default(""),
   address: z.string().trim().max(200, "العنوان طويل جداً").default(""),
   notes: z.string().trim().max(500, "الملاحظات طويلة جداً").default("")
 });

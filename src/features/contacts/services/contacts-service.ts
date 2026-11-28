@@ -53,7 +53,7 @@ export async function createContact(
 ): Promise<LocalParty> {
   const parsed = contactFormSchema.safeParse(input);
   if (!parsed.success) {
-    throw new Error(firstIssue(parsed.error.issues[0], "بيانات الجهة غير صالحة"));
+    throw new Error(parsed.error.issues[0]?.message ?? "بيانات الجهة غير صالحة");
   }
 
   const createdAt = nowIso();
@@ -61,6 +61,7 @@ export async function createContact(
     id: newId(),
     name: parsed.data.name,
     phone: parsed.data.phone,
+    whatsapp: parsed.data.whatsapp,
     address: parsed.data.address,
     notes: parsed.data.notes,
     currentBalanceMinor: 0,
@@ -88,6 +89,7 @@ export async function createContact(
             id: party.id,
             name: party.name,
             phone: party.phone,
+            whatsapp: party.whatsapp,
             address: party.address,
             notes: party.notes,
             current_balance: "0",
@@ -108,15 +110,15 @@ export async function updateContact(
   type: ContactType,
   db: MusaedDB = getDB()
 ): Promise<LocalParty> {
-  const parsed = contactFormSchema.safeParse(input);
-  if (!parsed.success) {
-    throw new Error(firstIssue(parsed.error.issues[0], "بيانات الجهة غير صالحة"));
-  }
-
   const table = partyTable(db, type);
   const existing = await table.get(partyId);
   if (!existing || existing.deletedAt) {
     throw new ContactNotFoundError();
+  }
+
+  const parsed = contactFormSchema.safeParse(input);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "بيانات الجهة غير صالحة");
   }
 
   const updatedAt = nowIso();
@@ -124,6 +126,7 @@ export async function updateContact(
     ...existing,
     name: parsed.data.name,
     phone: parsed.data.phone,
+    whatsapp: parsed.data.whatsapp,
     address: parsed.data.address,
     notes: parsed.data.notes,
     updatedAt,
@@ -149,6 +152,7 @@ export async function updateContact(
             id: updated.id,
             name: updated.name,
             phone: updated.phone,
+            whatsapp: updated.whatsapp,
             address: updated.address,
             notes: updated.notes
           },

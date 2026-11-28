@@ -33,6 +33,7 @@ export interface LocalParty extends SyncFields {
   id: string;
   name: string;
   phone: string;
+  whatsapp: string;
   address: string;
   notes: string;
   currentBalanceMinor: number;

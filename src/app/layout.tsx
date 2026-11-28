@@ -4,6 +4,7 @@ import "@fontsource/cairo/500.css";
 import "@fontsource/cairo/600.css";
 import "@fontsource/cairo/700.css";
 import "./globals.css";
+import { InstallBanner } from "@/components/install-banner";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { ZoomGuard } from "@/components/zoom-guard";
 import { OfflineNavGuard } from "@/components/layout/offline-nav-guard";
@@ -66,6 +67,7 @@ export default function RootLayout({
         <ZoomGuard />
         <OfflineNavGuard />
         {children}
+        <InstallBanner />
         <ServiceWorkerRegister />
       </body>
     </html>

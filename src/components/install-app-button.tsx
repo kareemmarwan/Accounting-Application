@@ -17,9 +17,9 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-type Platform = "ios" | "android" | null;
+export type Platform = "ios" | "android" | null;
 
-function detectPlatform(): Platform {
+export function detectPlatform(): Platform {
   if (typeof navigator === "undefined") return null;
   const ua = navigator.userAgent;
   const isIOS =
@@ -30,7 +30,7 @@ function detectPlatform(): Platform {
   return null;
 }
 
-function isStandalone(): boolean {
+export function isStandalone(): boolean {
   if (typeof window === "undefined") return false;
   const iosStandalone =
     "standalone" in window.navigator &&

@@ -18,6 +18,7 @@ const SUPPLIER_ID = "d0000000-0000-0000-0000-000000000004";
 const contactInput: ContactFormInput = {
   name: "أبو خالد",
   phone: "0599123456",
+  whatsapp: "",
   address: "غزة",
   notes: ""
 };
@@ -60,6 +61,49 @@ describe("contacts-service", () => {
 
     const outbox = await getDB().outbox.toArray();
     expect(outbox.filter((op) => op.opType === "entity.upsert")).toHaveLength(2);
+  });
+
+  it("يخزّن رقم واتساب مطبَّعاً دولياً للعميل ويمرره في Outbox", async () => {
+    const party = await createContact(
+      { ...contactInput, whatsapp: "+966 59-9123456" },
+      "customer",
+      { businessId: BUSINESS_ID }
+    );
+    expect(party.whatsapp).toBe("966599123456");
+
+    const op = (await getDB().outbox.toArray()).find(
+      (entry) => entry.opType === "entity.upsert" && entry.entityId === party.id
+    );
+    const payloadRow = (op?.payload as { row: { whatsapp?: string } } | undefined)?.row;
+    expect(payloadRow?.whatsapp).toBe("966599123456");
+  });
+
+  it("يرفض رقم واتساب محلي بصفر بادئ أو قصيراً", async () => {
+    await expect(
+      createContact({ ...contactInput, whatsapp: "0599123456" }, "customer", {
+        businessId: BUSINESS_ID
+      })
+    ).rejects.toThrow(/واتساب/);
+    await expect(
+      createContact({ ...contactInput, whatsapp: "1234567" }, "customer", {
+        businessId: BUSINESS_ID
+      })
+    ).rejects.toThrow(/واتساب/);
+  });
+
+  it("تعديل واتساب الجهة يحدّث السجل والـ Outbox معاً", async () => {
+    const party = await createContact(contactInput, "customer", {
+      businessId: BUSINESS_ID
+    });
+    expect(party.whatsapp).toBe("");
+    const updated = await updateContact(
+      party.id,
+      { ...contactInput, whatsapp: "970599111222" },
+      "customer"
+    );
+    expect(updated.whatsapp).toBe("970599111222");
+    const row = (await getDB().customers.get(party.id)) as LocalParty;
+    expect(row.whatsapp).toBe("970599111222");
   });
 
   it("يعدّل بيانات الجهة ويزيد الإصدار", async () => {

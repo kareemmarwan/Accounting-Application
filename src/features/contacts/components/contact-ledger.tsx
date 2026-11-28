@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Printer, Plus } from "lucide-react";
+import { BellRing, Loader2, Printer, Plus } from "lucide-react";
 import { formatCurrency, formatDateTime } from "@/lib/format";
 import { toMinor } from "@/core/accounting/money";
+import {
+  buildDebtReminderMessage,
+  openWhatsapp
+} from "@/lib/whatsapp";
+import { getDB } from "@/core/db/db";
 import {
   buildContactLedger,
   createManualDebt,
@@ -37,8 +42,33 @@ export function ContactLedger({ party, type, businessId, onClose }: ContactLedge
   const [debtAmount, setDebtAmount] = useState("");
   const [debtNotes, setDebtNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [businessInfo, setBusinessInfo] = useState<{ name: string; currency: string } | null>(null);
 
   const typeLabel = type === "customer" ? "عميل" : "مورد";
+
+  useEffect(() => {
+    getDB()
+      .businesses.get(businessId)
+      .then((business) => {
+        if (business) setBusinessInfo({ name: business.name, currency: business.currency });
+      })
+      .catch(() => undefined);
+  }, [businessId]);
+
+  const whatsappDigits = party.whatsapp ? party.whatsapp.replace(/\D/g, "") : "";
+  const canRemind = type === "customer" && whatsappDigits.length > 0 && (ledger?.currentBalanceMinor ?? 0) > 0;
+
+  function sendReminder() {
+    openWhatsapp(
+      whatsappDigits,
+      buildDebtReminderMessage({
+        partyName: party.name,
+        balanceMinor: ledger?.currentBalanceMinor ?? 0,
+        businessName: businessInfo?.name || "متجرنا",
+        currency: businessInfo?.currency || "ILS"
+      })
+    );
+  }
 
   function reload() {
     buildContactLedger(party.id, type)
@@ -193,6 +223,14 @@ export function ContactLedger({ party, type, businessId, onClose }: ContactLedge
           <p className="text-xs text-muted">إجمالي التعاملات</p>
           <p className="num font-bold">{formatCurrency(ledger?.totalTransactionsMinor ?? 0)}</p>
         </div>
+        {canRemind && (
+          <div className="ms-auto self-center">
+            <button type="button" onClick={sendReminder} className="btn-primary !px-4 !py-2 text-xs">
+              <BellRing className="h-4 w-4" aria-hidden />
+              تذكير واتساب بالدين
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (

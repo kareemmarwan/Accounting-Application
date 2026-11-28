@@ -1,4 +1,4 @@
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL_CACHE = `shell-${VERSION}`;
 const STATIC_CACHE = `static-${VERSION}`;
 
@@ -46,23 +46,41 @@ function isAuthPath(url) {
   }
 }
 
+// Safari/WebKit يرفض استجابات التنقل التي يخدمها SW إذا كانت محمّلة تاريخ تحويلات
+// (redirected: true) — يظهر بذلك الخطأ "response served by service worker has redirections".
+// الحل الجذري: إعادة بناء الاستجابة نظيفة بلا علامة التحويل قبل خدمتها أو تخزينها.
+async function sanitizeResponse(response) {
+  if (!response || !response.redirected) return response;
+  const finalUrl = response.url;
+  const body = await response.arrayBuffer();
+  const headers = new Headers(response.headers);
+  headers.delete("location");
+  const clean = new Response(body, {
+    status: response.status,
+    statusText: "",
+    headers
+  });
+  Object.defineProperty(clean, "url", { value: finalUrl });
+  return clean;
+}
+
 async function putBoth(cache, request, response) {
-  if (!response || !response.ok) return;
+  if (!response) return undefined;
   if (
     response.redirected &&
     isAuthPath(response.url) &&
     !isAuthPath(request.url)
   ) {
-    return;
+    return sanitizeResponse(response);
   }
+  const clean = await sanitizeResponse(response);
+  if (!clean || !clean.ok) return clean;
   try {
-    await cache.put(response.url || request.url, response.clone());
-    if (!response.redirected) {
-      await cache.put(request.url, response.clone());
-    }
+    await cache.put(clean.url || request.url, clean.clone());
   } catch (error) {
     void error;
   }
+  return clean;
 }
 
 // استخراج أصول /_next/static من HTML الصفحة — لضمان عمل الصفحة أوف لاين حتى لو لم تُزر من قبل
@@ -168,7 +186,7 @@ async function serveOffline() {
 async function fallbackNavigation(request) {
   const cache = await caches.open(SHELL_CACHE);
   const exact = await cache.match(request, { ignoreSearch: true, ignoreVary: true });
-  if (exact) return exact;
+  if (exact) return sanitizeResponse(exact);
 
   // لا تخدم "/" كبديل لمسارات التطبيق — مع جلسة نشطة تسبّب حلقة إعادة توجيه لا نهائية
   return serveOffline();
@@ -183,15 +201,12 @@ async function handleNavigation(request, event) {
     : null;
 
   const network = fetch(request)
-    .then(async (response) => {
-      await putBoth(cache, request, response);
-      return response;
-    })
+    .then((response) => putBoth(cache, request, response))
     .catch(() => undefined);
 
   if (cached) {
     event.waitUntil(network.catch(() => undefined));
-    return cached;
+    return sanitizeResponse(cached);
   }
 
   const fresh = await network;

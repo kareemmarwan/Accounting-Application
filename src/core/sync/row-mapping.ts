@@ -78,6 +78,7 @@ function baseParty(row: Row, serverMeta: ServerRowMeta): LocalParty {
     businessId: serverMeta.businessId,
     name: str(row, "name"),
     phone: str(row, "phone"),
+    whatsapp: str(row, "whatsapp"),
     address: str(row, "address"),
     notes: str(row, "notes"),
     currentBalanceMinor: money(row, "current_balance"),

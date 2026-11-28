@@ -51,7 +51,21 @@ SUPABASE_SERVICE_ROLE_KEY=<service_role key>
 
 بديل للسطرية: `npx supabase login && npx supabase link --project-ref <REF> && npx supabase db push`
 
-### 3) تحقق من الإطلاق
+### 3) النشر (Vercel)
+
+1. ارفع المشروع إلى GitHub (اجعل `.env.local` مستثنى — gitignore يحميه).
+2. استورده في [vercel.com](https://vercel.com) واضبط متغيرات البيئة في Project → Settings → Environment Variables:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (Environment: Production — يبقى في الخادم فقط)
+3. بعد أول نشر، ضع رابط الإنتاج في متغير `NEXT_PUBLIC_SITE_URL` (لصح بـ metadataBase) وحدّث في Supabase:
+   - **Auth → URL Configuration**: Site URL = رابط الإنتاج + أضف الرابط في Redirect URLs (للتسجيل/تأكيد البريد).
+4. بعد النشر: افتح الموقع وسجّل الدخول مرة أونلاين — الـ Service Worker v6 يخزّن كل الصفحات ليعمل التطبيق أوفلاين.
+5. عند تعديل `public/sw.js` مستقبلاً ارفع `VERSION` (v6 → v7) ليُحدَّث تلقائياً عند الأجهزة المثبتة.
+
+ملاحظة: `src/app/opengraph-image.tsx` معطّل مؤقتاً بسبب قيود مسار Windows (ADR في TASKS.md) — على Vercel (Linux) يمكن استعادته من `scripts/disabled/` إلى `src/app/`.
+
+### 4) تحقق من الإطلاق
 
 1. افتح `/register` وسجّل حساباً — ثم أكمل Onboarding (يبدأ تلقائياً تجربة مجانية 14 يوماً).
 2. سجّل بيعاً/شراءً/مصروفاً — يُحفظ محلياً فوراً ويعمل دون إنترنت.
